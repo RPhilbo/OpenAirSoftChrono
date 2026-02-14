@@ -232,7 +232,8 @@ void TimerSetup() {
 
   NRF_PPI->CH[0].EEP = (uint32_t)&NRF_GPIOTE->EVENTS_IN[0];
   NRF_PPI->CH[0].TEP = (uint32_t)&timer->TASKS_START;
-  //NRF_PPI->FORK[0].TEP = (uint32_t)&NRF_GPIOTE->TASKS_OUT[3];
+  NRF_PPI->FORK[0].TEP = (uint32_t)&timer->TASKS_CLEAR;
+  
   NRF_PPI->CH[1].EEP = (uint32_t)&NRF_GPIOTE->EVENTS_IN[1];
   NRF_PPI->CH[1].TEP = (uint32_t)&timer->TASKS_CAPTURE[0];
 
