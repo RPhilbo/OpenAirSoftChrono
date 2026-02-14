@@ -26,6 +26,7 @@
  * ============================================================ */
 // Task handlers to use multitasking
 TaskHandle_t HeartbeatTaskHandle;
+TaskHandle_t TofSensorCheckHandle;
 
 
 // A "Start Pistol" to prevent running the tasks by using "xTaskCreate" in setup()
@@ -37,6 +38,9 @@ SemaphoreHandle_t startTasksSignal;
  * ============================================================ */
 // Function Prototypes
 void HeartbeatTask(void *pvParameters);
+void TofSensorCheckTask(void *pvParameters);
+
+void TofSensorsEnableAll();
 
 
 /* ============================================================
@@ -75,8 +79,22 @@ void setup() {
       &HeartbeatTaskHandle  // Task handle
   );
 
+  // Create Task: ToF_Sensor_CheckTask
+  xTaskCreate(
+      TofSensorCheckTask,   // Function name
+      "TofPoll",            // Name for debugging
+      1024,                 // Stack size (in words)
+      NULL,                 // Parameter to pass
+      3,                    // Priority
+      &TofSensorCheckHandle // Task handle
+  );
+
 
   Serial.println("Setup Pre End");
+
+  // Enabling the ToF sensor pins.
+  Serial.println("Enabling the ToF sensor pins");
+  TofSensorsEnableAll();
 
   // Give the signal - this wakes up everyone waiting for it
   xSemaphoreGive(startTasksSignal); 
@@ -116,7 +134,55 @@ void HeartbeatTask(void *pvParameters) {
   }
 }
 
+// RTOS task to check the sensor via polling (for debug purpose)
+void TofSensorCheckTask(void *pvParameters) {
+  // Wait here forever until setup gives the signal
+  xSemaphoreTake(startTasksSignal, portMAX_DELAY);
+  
+  // Put the signal back so OTHER tasks can also pass the gate
+  xSemaphoreGive(startTasksSignal);
+
+  while (1) {
+    if (digitalRead(ToF_Sensor1_Output)) {
+      digitalWrite(LED_RED, LED_ON);
+      Serial.println("Sensor 1 output is high");
+    }
+    else digitalWrite(LED_RED, LED_OFF);
+
+    if (digitalRead(ToF_Sensor2_Output)) {
+      digitalWrite(LED_GREEN, LED_ON);
+      Serial.println("Sensor 2 output is high");
+    }
+    else digitalWrite(LED_GREEN, LED_OFF);
+
+    if (digitalRead(ToF_Sensor3_Output)) {
+      digitalWrite(LED_BLUE, LED_ON);
+      Serial.println("Sensor 3 output is high");
+    }
+    else digitalWrite(LED_BLUE, LED_OFF);
+    
+    vTaskDelay(pdMS_TO_TICKS(1)); // Non-blocking delay
+  }
+}
 
 /* ============================================================
  * ======================= METHODS ============================
  * ============================================================ */
+
+// Enables the ToF sensors (and their current consumption)
+void TofSensorsEnableAll() {
+  Serial.println("\nEnabling the ToF sensor 1 after delay");
+  vTaskDelay(pdMS_TO_TICKS(500)); // Non-blocking delay
+  digitalWrite(ToF_Sensor1_Enable, HIGH);
+  Serial.println("                ToF sensor 1 is enabled");
+
+  Serial.println("\nEnabling the ToF sensor 2 after delay");
+  vTaskDelay(pdMS_TO_TICKS(500)); // Non-blocking delay
+  digitalWrite(ToF_Sensor2_Enable, HIGH);
+  Serial.println("                ToF sensor 2 is enabled");
+
+  Serial.println("\nEnabling the ToF sensor 3 after delay");
+  vTaskDelay(pdMS_TO_TICKS(500)); // Non-blocking delay
+  digitalWrite(ToF_Sensor3_Enable, HIGH);
+  Serial.println("                ToF sensor 3 is enabled");
+}
