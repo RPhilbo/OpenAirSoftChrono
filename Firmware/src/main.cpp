@@ -138,7 +138,7 @@ void setup() {
 void loop() {
   // put your main code here, to run repeatedly:
   TimerCheckAndEvaluate();
-  vTaskDelay(pdMS_TO_TICKS(1000)); // Non-blocking delay
+  vTaskDelay(pdMS_TO_TICKS(1)); // Non-blocking delay
 }
 
 
@@ -255,7 +255,7 @@ void TimerCheckAndEvaluate() {
     
     BBCounter++;
 
-    Serial.printf("BBCounter: %u | %.0f us | %.2f ms | v12: %.2f m/s | E12: %.3f J\n", BBCounter, timerMicroseconds, timerMilliseconds, velocity12, energy12);
+    Serial.printf("BBCounter: %u | %.2f us | %.2f ms | v12: %.2f m/s | E12: %.3f J\n", BBCounter, timerMicroseconds, timerMilliseconds, velocity12, energy12);
 
     // Hardware Reset
     NRF_PPI->CHENCLR = (1 << 0) | (1 << 1);
