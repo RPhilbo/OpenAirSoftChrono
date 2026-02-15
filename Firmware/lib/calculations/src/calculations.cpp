@@ -5,12 +5,14 @@
  * ======================= TIME ===============================
  * ============================================================ */
 
+// Ticks to microseconds conversion
 float calculateTicksToMicroseconds(uint32_t ticks) {
-    return (float)ticks / 16.0f;
+    return (float)ticks / (TIMERFREQ/1000000.0f);
 }
 
+// Ticks to milliseconds conversion
 float calculateTicksToMilliseconds(uint32_t ticks) {
-    return (float)ticks / 16000.0f;
+    return (float)ticks / (TIMERFREQ/1000000.0f);
 }
 
     
@@ -45,4 +47,14 @@ float calculateVelocityMicro(float distance_mm, float time_us) {
 float calculateEnergy(float velocity, float mass_kg) {
     float energy = 0.5f * (mass_kg) * velocity * velocity; // Energie in Joule
     return energy;
+}
+
+
+/* ============================================================
+ * ======================= UNIT CONVERSION ====================
+ * ============================================================ */
+
+// convert velocity from m/s to ft/s
+float convertVelocityMSToFTS(float velocity_ms) {
+    return velocity_ms * 3.28084f; // conversion in ft/s
 }

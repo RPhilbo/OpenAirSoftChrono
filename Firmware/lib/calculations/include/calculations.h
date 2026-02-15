@@ -1,5 +1,7 @@
 #include <Arduino.h>
 
+#define TIMERFREQ 16000000UL // 16 MHz
+
 float calculateTicksToMicroseconds(uint32_t ticks);
 float calculateTicksToMilliseconds(uint32_t ticks);
 
@@ -8,3 +10,5 @@ float calculateVelocityMilli(float distance_mm, float time_ms);
 float calculateVelocityMicro(float distance_mm, float time_us);
 
 float calculateEnergy(float velocity, float mass_kg);
+
+float convertVelocityMSToFTS(float velocity_ms);
