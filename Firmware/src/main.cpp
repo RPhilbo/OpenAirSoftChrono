@@ -2,13 +2,17 @@
 #include <variant.h>
 #include <Wire.h>
 
+#include "timer_control.h"
+
 #define LED_OFF HIGH
 #define LED_ON LOW
 
+//#define bbDirectionFromUSB
 
 /* ============================================================
  * ======================= Pins ===============================
  * ============================================================ */
+
 #define LED_OFF HIGH
 #define LED_ON LOW
 
@@ -27,10 +31,21 @@
 // Task handlers to use multitasking
 TaskHandle_t HeartbeatTaskHandle;
 TaskHandle_t TofSensorCheckHandle;
+TaskHandle_t TimerCheckAndEvaluateTaskHandle;
 
 
 // A "Start Pistol" to prevent running the tasks by using "xTaskCreate" in setup()
 SemaphoreHandle_t startTasksSignal;
+
+
+uint32_t BBCounter = 0;
+
+
+/* ============================================================
+ * ======================= PHYSICS ============================
+ * ============================================================ */
+static const float TofSensorDistance = 0.02f;
+float BBWeight = 0.00036f;
 
 
 /* ============================================================
@@ -41,11 +56,13 @@ void HeartbeatTask(void *pvParameters);
 void TofSensorCheckTask(void *pvParameters);
 
 void TofSensorsEnableAll();
-
+void TimerSetup();
+void TimerCheckAndEvaluate();
 
 /* ============================================================
  * ======================= SETUP ==============================
  * ============================================================ */
+
 void setup() {
   Serial.begin(115200);
   while(!Serial);
@@ -67,6 +84,17 @@ void setup() {
   pinMode(ToF_Sensor3_Output, INPUT_PULLDOWN);
 
 
+  // Enabling the ToF sensor pins.
+  Serial.println("Enabling the ToF sensor pins");
+  TofSensorsEnableAll();
+  delay(50);
+
+  // Preparing the timer
+  Serial.println("Timer Setup");
+  TimerSetup();
+  delay(50);
+
+
   startTasksSignal = xSemaphoreCreateBinary(); // Create the "Pistol"
 
   // Create Task: Blinking1
@@ -79,37 +107,42 @@ void setup() {
       &HeartbeatTaskHandle  // Task handle
   );
 
-  // Create Task: ToF_Sensor_CheckTask
+  // Create Task: TofSensorCheckTask
   xTaskCreate(
       TofSensorCheckTask,   // Function name
       "TofPoll",            // Name for debugging
       1024,                 // Stack size (in words)
       NULL,                 // Parameter to pass
-      3,                    // Priority
+      2,                    // Priority
       &TofSensorCheckHandle // Task handle
   );
 
 
   Serial.println("Setup Pre End");
 
-  // Enabling the ToF sensor pins.
-  Serial.println("Enabling the ToF sensor pins");
-  TofSensorsEnableAll();
+  
+
+   
+
+  Serial.println(" ");
+  Serial.println("Setup End");
+  Serial.println(" ");
 
   // Give the signal - this wakes up everyone waiting for it
-  xSemaphoreGive(startTasksSignal); 
-
-  Serial.println("Setup End");
+  Serial.println("Pre startTasksSignal");
+  xSemaphoreGive(startTasksSignal);
+  Serial.println("Post startTasksSignal");
 }
 
 
 /* ============================================================
  * ======================= LOOP ===============================
  * ============================================================ */
+
 void loop() {
   // put your main code here, to run repeatedly:
-
-  vTaskDelay(pdMS_TO_TICKS(1000)); // Non-blocking delay
+  TimerCheckAndEvaluate();
+  vTaskDelay(pdMS_TO_TICKS(1)); // Non-blocking delay
 }
 
 
@@ -161,9 +194,12 @@ void TofSensorCheckTask(void *pvParameters) {
     }
     else digitalWrite(LED_BLUE, LED_OFF);
     
-    vTaskDelay(pdMS_TO_TICKS(1)); // Non-blocking delay
+    vTaskDelay(pdMS_TO_TICKS(300)); // Non-blocking delay
   }
 }
+
+
+
 
 /* ============================================================
  * ======================= METHODS ============================
@@ -185,4 +221,26 @@ void TofSensorsEnableAll() {
   vTaskDelay(pdMS_TO_TICKS(500)); // Non-blocking delay
   digitalWrite(ToF_Sensor3_Enable, HIGH);
   Serial.println("                ToF sensor 3 is enabled");
+}
+
+
+// Read Timer value, then calc and print value in microseconds
+void TimerCheckAndEvaluate() {
+  uint32_t ticks = timer->CC[0];
+  
+  if (ticks > 1000) {
+    float timerMicroseconds = (float)ticks / 16.0f;
+    float timerMilliseconds = timerMicroseconds / 1000;
+
+    //float velocity12 = ((float)20.0f / timerMicroseconds) * 1000.0f;
+    float velocity12 = TofSensorDistance / (timerMicroseconds/1000000.0f);
+    float energy12 = 0.5f * BBWeight * velocity12 * velocity12;
+    
+    BBCounter++;
+
+    Serial.printf("BBCounter: %u | %.2f us | %.2f ms | v12: %.2f m/s | E12: %.3f J\n", BBCounter, timerMicroseconds, timerMilliseconds, velocity12, energy12);
+
+    // Reset tht timer for the next shot.
+    void TimerReset();
+  }  
 }
