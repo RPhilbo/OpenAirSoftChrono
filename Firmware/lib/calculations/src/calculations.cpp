@@ -1,4 +1,22 @@
 #include "calculations.h"
+#include <stdio.h>
+
+/* ============================================================
+ * ======================= TIME ===============================
+ * ============================================================ */
+
+float calculateTicksToMicroseconds(uint32_t ticks) {
+    return (float)ticks / 16.0f;
+}
+
+float calculateTicksToMilliseconds(uint32_t ticks) {
+    return (float)ticks / 16000.0f;
+}
+
+    
+/* ============================================================
+ * ======================= VELOCITY ===========================
+ * ============================================================ */
 
 // calculate velocity with meter and seconds
 float calculateVelocitySI(float distance_m, float time_s) {
@@ -18,7 +36,12 @@ float calculateVelocityMicro(float distance_mm, float time_us) {
     return velocity;
 }
 
-//calcuate Energie: E = 0.5 * m * v^2
+
+/* ============================================================
+ * ======================= ENERGY =============================
+ * ============================================================ */
+
+// calcuate Energy: E = 0.5 * m * v^2
 float calculateEnergy(float velocity, float mass_kg) {
     float energy = 0.5f * (mass_kg) * velocity * velocity; // Energie in Joule
     return energy;

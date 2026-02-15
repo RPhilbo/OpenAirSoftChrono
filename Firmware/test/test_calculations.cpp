@@ -13,6 +13,7 @@ float distance_mm = distance_m*1000;    // millimeter
 float time_s      = 0.0001f;        // seconds
 float time_ms     = time_s*1000;    // milliseconds
 float time_us     = time_ms*1000;   // microseconds
+uint32_t ticks    = 672;            // timer ticks
 
 float bbWeight   = 0.00036f;        // BB weight in kg
 float bbWeight_g = bbWeight*1000;   // grams
@@ -52,6 +53,11 @@ void test_example(void) {
  * ======================= TIME ===============================
  * ============================================================ */
 
+ // Ticks to microseconds conversion test case
+void test_calculateTicksToMicroseconds(void) {
+  float timerMicroseconds = calculateTicksToMicroseconds(ticks);
+  TEST_ASSERT_EQUAL_FLOAT (42.f, timerMicroseconds);
+}
 
 /* ============================================================
  * ======================= VELOCITY ===========================
@@ -60,21 +66,18 @@ void test_example(void) {
  // Test case for calculateVelocitySI function
 void test_calculateVelocitySI(void) {
   float velocity = calculateVelocitySI(distance_m, time_s);
-  //TEST_ASSERT_FLOAT_WITHIN (0.001f, 20.f, velocity);
   TEST_ASSERT_EQUAL_FLOAT (200.f, velocity);
 }
 
 // Test case for calculateVelocityMilli function
 void test_calculateVelocityMilli(void) {
   float velocity = calculateVelocityMilli(distance_mm, time_ms);
-  //TEST_ASSERT_FLOAT_WITHIN (0.001f, 20.f, velocity);
   TEST_ASSERT_EQUAL_FLOAT (200.f, velocity);
 }
 
 // Test case for calculateVelocityMicro function
 void test_calculateVelocityMicro(void) {
   float velocity = calculateVelocityMicro(distance_mm, time_us);
-  //TEST_ASSERT_FLOAT_WITHIN (0.001f, 20.f, velocity);
   TEST_ASSERT_EQUAL_FLOAT (200.f, velocity);
 }
 
@@ -86,7 +89,6 @@ void test_calculateVelocityMicro(void) {
 // Test case for calculateEnergy function
 void test_calculateEnergy(void) {
   float energy = calculateEnergy(150.0f, 0.0004);
-  //TEST_ASSERT_FLOAT_WITHIN (0.1f, 10.f, energy);
   TEST_ASSERT_EQUAL_FLOAT (4.5f, energy);
 }
 
@@ -100,6 +102,8 @@ void test_calculateEnergy(void) {
 int main(int argc, char **argv) {
     UNITY_BEGIN();
     RUN_TEST(test_example);
+
+    RUN_TEST(test_calculateTicksToMicroseconds);
 
     RUN_TEST(test_calculateVelocitySI);
     RUN_TEST(test_calculateVelocityMilli);
