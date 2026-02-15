@@ -46,6 +46,13 @@ NRF_TIMER_Type *timer = NRF_TIMER2;
 
 
 /* ============================================================
+ * ======================= PHYSICS ============================
+ * ============================================================ */
+static const float TofSensorDistance = 0.02f;
+float BBWeight = 0.00036f;
+
+
+/* ============================================================
  * ======================= PROTOTYPES =========================
  * ============================================================ */
 // Function Prototypes
@@ -257,8 +264,9 @@ void TimerCheckAndEvaluate() {
     float timerMicroseconds = (float)ticks / 16.0f;
     float timerMilliseconds = timerMicroseconds / 1000;
 
-    float velocity12 = ((float)20.0f / timerMicroseconds) * 1000.0f;
-    float energy12 = 0.5f * (1) * velocity12 * velocity12;
+    //float velocity12 = ((float)20.0f / timerMicroseconds) * 1000.0f;
+    float velocity12 = TofSensorDistance / (timerMicroseconds/1000000.0f);
+    float energy12 = 0.5f * BBWeight * velocity12 * velocity12;
     
     BBCounter++;
 
