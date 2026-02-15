@@ -5,7 +5,7 @@
 #define LED_OFF HIGH
 #define LED_ON LOW
 
-#define bbDirectionFromUSB
+//#define bbDirectionFromUSB
 
 /* ============================================================
  * ======================= Pins ===============================
