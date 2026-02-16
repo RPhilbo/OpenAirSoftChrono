@@ -274,12 +274,7 @@ void TimerCheckAndEvaluate() {
 
     Serial.printf("BBCounter: %u | %.2f us | %.2f ms | v12: %.2f m/s | E12: %.3f J\n", BBCounter, timerMicroseconds, timerMilliseconds, velocity12, energy12);
 
-    // Hardware Reset
-    NRF_PPI->CHENCLR = (1 << 0) | (1 << 1);
-    timer->TASKS_STOP = 1; timer->TASKS_CLEAR = 1; timer->CC[0] = 0;
-    NRF_GPIOTE->EVENTS_IN[0] = 0; NRF_GPIOTE->EVENTS_IN[1] = 0;
-    (void)NRF_GPIOTE->EVENTS_IN[0]; (void)NRF_GPIOTE->EVENTS_IN[1];
-    while(digitalRead(D10) == HIGH || digitalRead(D7) == HIGH);
-    NRF_PPI->CHENSET = (1 << 0) | (1 << 1);
-  }  
+    // Timer reset for next measurement
+    TimerReset();
+  }
 }

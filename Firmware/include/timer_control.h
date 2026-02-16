@@ -11,7 +11,7 @@ extern NRF_TIMER_Type *timer;
 //NRF_TIMER_Type *timer = NRF_TIMER2;
 
 void TimerSetup();
-//void TimerReset();
+void TimerReset();
 
 //float getTicksConvertToMicroseconds();
 //void TimerCheckAndEvaluate();
