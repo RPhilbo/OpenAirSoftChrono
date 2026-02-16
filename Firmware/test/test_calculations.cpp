@@ -107,7 +107,7 @@ void test_calculateEnergyGramm(void) {
  * ============================================================ */
 
 // Test case for unit conversion m/s to feet/s
-void test_calculateEnergyGramm(void) {
+void test_calculateVelocitySItoRetard(void) {
   float VelocityRetard = convertVelocityMSToFTS(150.0f);
   TEST_ASSERT_EQUAL_FLOAT (492.126, VelocityRetard);
 }
@@ -136,7 +136,7 @@ int main(int argc, char **argv) {
     RUN_TEST(test_calculateEnergyGramm);
 
     // Units
-    RUN_TEST(test_calculateEnergyGramm);
+    RUN_TEST(test_calculateVelocitySItoRetard);
 
     return UNITY_END();
 }
