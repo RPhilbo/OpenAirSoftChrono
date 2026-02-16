@@ -44,20 +44,23 @@ void test_example(void) {
  * ============================================================ */
 
 
-/* ============================================================
- * ======================= UNIT CONVERSION ====================
- * ============================================================ */
-
 
 /* ============================================================
  * ======================= TIME ===============================
  * ============================================================ */
 
- // Ticks to microseconds conversion test case
+// Ticks to microseconds conversion test case
 void test_calculateTicksToMicroseconds(void) {
-  float timerMicroseconds = calculateTicksToMicroseconds(ticks);
-  TEST_ASSERT_EQUAL_FLOAT (42.f, timerMicroseconds);
+  float time = calculateTicksToMicroseconds(ticks);
+  TEST_ASSERT_EQUAL_FLOAT (42.f, time);
 }
+
+// Ticks to microseconds conversion test case
+void test_calculateTicksToMilliseconds(void) {
+  float time = calculateTicksToMilliseconds(ticks);
+  TEST_ASSERT_EQUAL_FLOAT (42.f, time);
+}
+
 
 /* ============================================================
  * ======================= VELOCITY ===========================
@@ -87,11 +90,27 @@ void test_calculateVelocityMicro(void) {
  * ============================================================ */
 
 // Test case for calculateEnergy function
-void test_calculateEnergy(void) {
-  float energy = calculateEnergy(150.0f, 0.0004);
+void test_calculateEnergySI(void) {
+  float energy = calculateEnergySI(150.0f, 0.0004);
   TEST_ASSERT_EQUAL_FLOAT (4.5f, energy);
 }
 
+// Test case for calculateEnergy function
+void test_calculateEnergyGramm(void) {
+  float energy = calculateEnergyGramm(150.0f, 0.4f);
+  TEST_ASSERT_EQUAL_FLOAT (4.5f, energy);
+}
+
+
+/* ============================================================
+ * ======================= UNIT CONVERSION ====================
+ * ============================================================ */
+
+// Test case for unit conversion m/s to feet/s
+void test_calculateEnergyGramm(void) {
+  float VelocityRetard = convertVelocityMSToFTS(150.0f);
+  TEST_ASSERT_EQUAL_FLOAT (492.126, VelocityRetard);
+}
 
 
 /* ============================================================
@@ -103,12 +122,21 @@ int main(int argc, char **argv) {
     UNITY_BEGIN();
     RUN_TEST(test_example);
 
+    // Time
     RUN_TEST(test_calculateTicksToMicroseconds);
+    RUN_TEST(test_calculateTicksToMilliseconds);
 
+    // Velocity
     RUN_TEST(test_calculateVelocitySI);
     RUN_TEST(test_calculateVelocityMilli);
     RUN_TEST(test_calculateVelocityMicro);
-    
-    RUN_TEST(test_calculateEnergy);
+
+    // Energy
+    RUN_TEST(test_calculateEnergySI);
+    RUN_TEST(test_calculateEnergyGramm);
+
+    // Units
+    RUN_TEST(test_calculateEnergyGramm);
+
     return UNITY_END();
 }

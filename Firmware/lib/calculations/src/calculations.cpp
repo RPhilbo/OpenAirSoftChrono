@@ -44,8 +44,14 @@ float calculateVelocityMicro(float distance_mm, float time_us) {
  * ============================================================ */
 
 // calcuate Energy: E = 0.5 * m * v^2
-float calculateEnergy(float velocity, float mass_kg) {
+float calculateEnergySI(float velocity, float mass_kg) {
     float energy = 0.5f * (mass_kg) * velocity * velocity; // Energie in Joule
+    return energy;
+}
+
+// calcuate Energy: E = 0.5 * m * v^2
+float calculateEnergyGramm(float velocity, float mass_g) {
+    float energy = 0.5f * (mass_g*1000) * velocity * velocity; // Energie in Joule
     return energy;
 }
 
