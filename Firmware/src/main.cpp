@@ -2,10 +2,11 @@
 #include <variant.h>
 #include <Wire.h>
 
+#include "config.h"
+
 #define LED_OFF HIGH
 #define LED_ON LOW
 
-#define bbDirectionFromUSB
 
 /* ============================================================
  * ======================= Pins ===============================
