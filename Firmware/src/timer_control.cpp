@@ -1,14 +1,14 @@
 #include "config.h"
 #include "timer_control.h"
 
-NRF_TIMER_Type *timer = NRF_TIMER2;
 
+NRF_TIMER_Type *timer = NRF_TIMER2;
 
 /* ============================================================
  * ======================= METHODS ============================
  * ============================================================ */
 
-// Setting up the timer, with direct Pin numbers!!! ToDo: Use defines/Variables.
+// setting up the timer.
 void TimerSetup() {
   timer->TASKS_STOP = 1; 
   timer->TASKS_CLEAR = 1;
@@ -38,16 +38,16 @@ void TimerSetup() {
 }
 
 
-// Reset the timer
+// Timer reset for next measurement
 void TimerReset() {
-  NRF_PPI->CHENCLR = (1 << 0) | (1 << 1);
-  timer->TASKS_STOP = 1;
-  timer->TASKS_CLEAR = 1;
-  timer->CC[0] = 0;
-  NRF_GPIOTE->EVENTS_IN[0] = 0;
-  NRF_GPIOTE->EVENTS_IN[1] = 0;
-  (void)NRF_GPIOTE->EVENTS_IN[0]; // ToDo: check if redundant
-  (void)NRF_GPIOTE->EVENTS_IN[1]; // ToDo: check if redundant
-  while(digitalRead(D10) == HIGH || digitalRead(D7) == HIGH);
-  NRF_PPI->CHENSET = (1 << 0) | (1 << 1);
-};
+    NRF_PPI->CHENCLR = (1 << 0) | (1 << 1);
+    timer->TASKS_STOP = 1;
+    timer->TASKS_CLEAR = 1;
+    timer->CC[0] = 0;
+    NRF_GPIOTE->EVENTS_IN[0] = 0;
+    NRF_GPIOTE->EVENTS_IN[1] = 0;
+    (void)NRF_GPIOTE->EVENTS_IN[0];
+    (void)NRF_GPIOTE->EVENTS_IN[1];
+    while(digitalRead(D10) == HIGH || digitalRead(D7) == HIGH);
+    NRF_PPI->CHENSET = (1 << 0) | (1 << 1);
+}

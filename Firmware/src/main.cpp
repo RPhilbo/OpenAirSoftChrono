@@ -2,12 +2,12 @@
 #include <variant.h>
 #include <Wire.h>
 
+#include "config.h"
 #include "timer_control.h"
 
 #define LED_OFF HIGH
 #define LED_ON LOW
 
-//#define bbDirectionFromUSB
 
 /* ============================================================
  * ======================= Pins ===============================
@@ -40,6 +40,12 @@ SemaphoreHandle_t startTasksSignal;
 
 uint32_t BBCounter = 0;
 
+/* ============================================================
+ * ======================= TIMER ==============================
+ * ============================================================ */
+
+extern NRF_TIMER_Type *timer;
+
 
 /* ============================================================
  * ======================= PHYSICS ============================
@@ -56,7 +62,7 @@ void HeartbeatTask(void *pvParameters);
 void TofSensorCheckTask(void *pvParameters);
 
 void TofSensorsEnableAll();
-void TimerSetup();
+
 void TimerCheckAndEvaluate();
 
 /* ============================================================
@@ -240,7 +246,7 @@ void TimerCheckAndEvaluate() {
 
     Serial.printf("BBCounter: %u | %.2f us | %.2f ms | v12: %.2f m/s | E12: %.3f J\n", BBCounter, timerMicroseconds, timerMilliseconds, velocity12, energy12);
 
-    // Reset tht timer for the next shot.
-    void TimerReset();
-  }  
+    // Timer reset for next measurement
+    TimerReset();
+  }
 }
