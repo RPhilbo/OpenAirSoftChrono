@@ -62,7 +62,7 @@ void HeartbeatTask(void *pvParameters);
 void TofSensorCheckTask(void *pvParameters);
 
 void TofSensorsEnableAll();
-//void TimerSetup();
+
 void TimerCheckAndEvaluate();
 
 /* ============================================================
@@ -228,34 +228,6 @@ void TofSensorsEnableAll() {
   digitalWrite(ToF_Sensor3_Enable, HIGH);
   Serial.println("                ToF sensor 3 is enabled");
 }
-
-/*void TimerSetup() {
-  timer->TASKS_STOP = 1; 
-  timer->TASKS_CLEAR = 1;
-  timer->CC[0] = 0; 
-  timer->PRESCALER = 0;
-  timer->BITMODE = TIMER_BITMODE_BITMODE_32Bit << TIMER_BITMODE_BITMODE_Pos;
-
-  #ifdef bbDirectionFromUSB
-  NRF_GPIOTE->CONFIG[0] = (GPIOTE_CONFIG_MODE_Event << GPIOTE_CONFIG_MODE_Pos) | (47 << GPIOTE_CONFIG_PSEL_Pos) | (GPIOTE_CONFIG_POLARITY_LoToHi << GPIOTE_CONFIG_POLARITY_Pos);
-  NRF_GPIOTE->CONFIG[1] = (GPIOTE_CONFIG_MODE_Event << GPIOTE_CONFIG_MODE_Pos) | (44 << GPIOTE_CONFIG_PSEL_Pos) | (GPIOTE_CONFIG_POLARITY_LoToHi << GPIOTE_CONFIG_POLARITY_Pos);
-  //NRF_GPIOTE->CONFIG[3] = (GPIOTE_CONFIG_MODE_Task << GPIOTE_CONFIG_MODE_Pos) | (D8 << GPIOTE_CONFIG_PSEL_Pos) | (GPIOTE_CONFIG_POLARITY_LoToHi << GPIOTE_CONFIG_POLARITY_Pos) | (GPIOTE_CONFIG_OUTINIT_Low << GPIOTE_CONFIG_OUTINIT_Pos);
-  #else
-  NRF_GPIOTE->CONFIG[0] = (GPIOTE_CONFIG_MODE_Event << GPIOTE_CONFIG_MODE_Pos) | (44 << GPIOTE_CONFIG_PSEL_Pos) | (GPIOTE_CONFIG_POLARITY_LoToHi << GPIOTE_CONFIG_POLARITY_Pos);
-  NRF_GPIOTE->CONFIG[1] = (GPIOTE_CONFIG_MODE_Event << GPIOTE_CONFIG_MODE_Pos) | (47 << GPIOTE_CONFIG_PSEL_Pos) | (GPIOTE_CONFIG_POLARITY_LoToHi << GPIOTE_CONFIG_POLARITY_Pos);
-  #endif
-
-  NRF_PPI->CH[0].EEP = (uint32_t)&NRF_GPIOTE->EVENTS_IN[0];
-  NRF_PPI->CH[0].TEP = (uint32_t)&timer->TASKS_START;
-  NRF_PPI->FORK[0].TEP = (uint32_t)&timer->TASKS_CLEAR;
-
-  NRF_PPI->CH[1].EEP = (uint32_t)&NRF_GPIOTE->EVENTS_IN[1];
-  NRF_PPI->CH[1].TEP = (uint32_t)&timer->TASKS_CAPTURE[0];
-
-  NRF_PPI->CHENSET = (1 << 0) | (1 << 1);
-
-  Serial.println("Timer is set up");
-}*/
 
 
 // Read Timer value, then calc and print value in microseconds
