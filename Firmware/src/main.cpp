@@ -3,6 +3,7 @@
 #include <Wire.h>
 
 #include "config.h"
+#include "timer_control.h"
 
 #define LED_OFF HIGH
 #define LED_ON LOW
@@ -61,7 +62,7 @@ void HeartbeatTask(void *pvParameters);
 void TofSensorCheckTask(void *pvParameters);
 
 void TofSensorsEnableAll();
-void TimerSetup();
+//void TimerSetup();
 void TimerCheckAndEvaluate();
 
 /* ============================================================
@@ -228,7 +229,7 @@ void TofSensorsEnableAll() {
   Serial.println("                ToF sensor 3 is enabled");
 }
 
-void TimerSetup() {
+/*void TimerSetup() {
   timer->TASKS_STOP = 1; 
   timer->TASKS_CLEAR = 1;
   timer->CC[0] = 0; 
@@ -254,7 +255,7 @@ void TimerSetup() {
   NRF_PPI->CHENSET = (1 << 0) | (1 << 1);
 
   Serial.println("Timer is set up");
-}
+}*/
 
 
 // Read Timer value, then calc and print value in microseconds
