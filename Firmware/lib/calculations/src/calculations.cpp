@@ -51,7 +51,7 @@ float calculateEnergySI(float velocity, float mass_kg) {
 
 // calcuate Energy: E = 0.5 * m * v^2
 float calculateEnergyGramm(float velocity, float mass_g) {
-    float energy = 0.5f * (mass_g*1000) * velocity * velocity; // Energie in Joule
+    float energy = 0.5f * (mass_g/1000) * velocity * velocity; // Energie in Joule
     return energy;
 }
 
