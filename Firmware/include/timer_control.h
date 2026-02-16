@@ -8,7 +8,7 @@ extern uint32_t BBCounter;
 
 // The 'extern' keyword tells the compiler the timer is defined elsewhere
 extern NRF_TIMER_Type *timer;
-//NRF_TIMER_Type *timer = NRF_TIMER2;
+
 
 void TimerSetup();
 void TimerReset();
