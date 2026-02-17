@@ -40,7 +40,7 @@ SemaphoreHandle_t startTasksSignal;
 
 
 uint32_t BBCounter = 0;
-<<<<<<< main
+uint32_t FakeCounter = 0;
 
 /* ============================================================
  * ======================= TIMER ==============================
@@ -48,9 +48,6 @@ uint32_t BBCounter = 0;
 
 extern NRF_TIMER_Type *timer;
 
-=======
-uint32_t FakeCounter = 0;
->>>>>>> bluetooh
 
 /* ============================================================
  * ======================= PHYSICS ============================
@@ -188,9 +185,9 @@ void HeartbeatTask(void *pvParameters) {
     }
 
     FakeCounter++;
-      vTaskDelay(pdMS_TO_TICKS(100)); // Non-blocking delay
+      vTaskDelay(pdMS_TO_TICKS(1000)); // Non-blocking delay
     digitalWrite(LED_RED, LED_OFF);
-      vTaskDelay(pdMS_TO_TICKS(100)); // Non-blocking delay
+      vTaskDelay(pdMS_TO_TICKS(10000)); // Non-blocking delay
   }
 }
 
@@ -267,11 +264,9 @@ void TimerCheckAndEvaluate() {
 
     Serial.printf("BBC: %u | %.2f us | %.2f ms | v: %.2f m/s | E: %.3f J\n", BBCounter, timerMicroseconds, timerMilliseconds, velocity12, energy12);
 
-<<<<<<< main
     // Timer reset for next measurement
     TimerReset();
-  }
-=======
+
     // Reset tht timer for the next shot.
     void TimerReset();
   }  
@@ -304,5 +299,4 @@ void BLEstartAdv(void) {
   Bluefruit.ScanResponse.addName();
   Bluefruit.Advertising.restartOnDisconnect(true);
   Bluefruit.Advertising.start(0);
->>>>>>> bluetooh
 }
