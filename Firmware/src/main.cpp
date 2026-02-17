@@ -1,6 +1,7 @@
 #include <Arduino.h>
 #include <variant.h>
 #include <Wire.h>
+#include <bluefruit.h>
 
 #include "config.h"
 #include "timer_control.h"
@@ -39,6 +40,7 @@ SemaphoreHandle_t startTasksSignal;
 
 
 uint32_t BBCounter = 0;
+uint32_t FakeCounter = 0;
 
 /* ============================================================
  * ======================= TIMER ==============================
@@ -64,6 +66,12 @@ void TofSensorCheckTask(void *pvParameters);
 void TofSensorsEnableAll();
 
 void TimerCheckAndEvaluate();
+
+void BLEsetup();
+void BLEstartAdv(void);
+BLEService        oacService  = BLEService("19b10000-e8f2-537e-4f6c-d104768a1214");
+BLECharacteristic fakeChar    = BLECharacteristic("19b10042-e8f2-537e-4f6c-d104768a1214");
+
 
 /* ============================================================
  * ======================= SETUP ==============================
@@ -100,6 +108,8 @@ void setup() {
   TimerSetup();
   delay(50);
 
+  BLEsetup();
+  BLEstartAdv();
 
   startTasksSignal = xSemaphoreCreateBinary(); // Create the "Pistol"
 
@@ -167,6 +177,14 @@ void HeartbeatTask(void *pvParameters) {
   while (1) {
     digitalWrite(LED_RED, LED_ON);
     Serial.println("Heartbeat Task is alive");
+
+    // Update the characteristic and NOTIFY the connected app
+    if (Bluefruit.connected()) {
+      fakeChar.notify32(FakeCounter);
+      Serial.printf("Sent value: %d\n", FakeCounter);
+    }
+
+    FakeCounter++;
       vTaskDelay(pdMS_TO_TICKS(1000)); // Non-blocking delay
     digitalWrite(LED_RED, LED_OFF);
       vTaskDelay(pdMS_TO_TICKS(10000)); // Non-blocking delay
@@ -248,5 +266,37 @@ void TimerCheckAndEvaluate() {
 
     // Timer reset for next measurement
     TimerReset();
-  }
+
+    // Reset tht timer for the next shot.
+    void TimerReset();
+  }  
+}
+
+void BLEsetup(void) {
+  // Initialize Bluefruit
+  Bluefruit.begin();
+  Bluefruit.setName("OAC Hello");
+
+  // Setup Service & Characteristic
+  oacService.begin();
+
+  // Setup the Characteristic for WRITING
+  // CHR_PROPS_WRITE allows the phone to send data to the nRF52
+  fakeChar.setProperties(CHR_PROPS_READ | CHR_PROPS_NOTIFY);
+  fakeChar.setPermission(SECMODE_OPEN, SECMODE_NO_ACCESS); // Open read/write
+  fakeChar.setFixedLen(4);
+  fakeChar.setPresentationFormatDescriptor(BLE_GATT_CPF_FORMAT_UINT32,
+                                            0x0,    // exponent: 0 (Value * 10^0)
+                                            0x2700, // unit: 2700 "unitless"
+                                            BLE_GATT_CPF_NAMESPACE_BTSIG,
+                                            0x0000);  // description: 0 (None)
+  fakeChar.begin();
+}
+
+void BLEstartAdv(void) {
+  Bluefruit.Advertising.addFlags(BLE_GAP_ADV_FLAGS_LE_ONLY_GENERAL_DISC_MODE);
+  Bluefruit.Advertising.addService(oacService);
+  Bluefruit.ScanResponse.addName();
+  Bluefruit.Advertising.restartOnDisconnect(true);
+  Bluefruit.Advertising.start(0);
 }
