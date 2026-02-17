@@ -3,12 +3,12 @@
 #include <Wire.h>
 #include <bluefruit.h>
 
+#include "config.h"
 #include "timer_control.h"
 
 #define LED_OFF HIGH
 #define LED_ON LOW
 
-//#define bbDirectionFromUSB
 
 /* ============================================================
  * ======================= Pins ===============================
@@ -40,7 +40,17 @@ SemaphoreHandle_t startTasksSignal;
 
 
 uint32_t BBCounter = 0;
+<<<<<<< main
+
+/* ============================================================
+ * ======================= TIMER ==============================
+ * ============================================================ */
+
+extern NRF_TIMER_Type *timer;
+
+=======
 uint32_t FakeCounter = 0;
+>>>>>>> bluetooh
 
 /* ============================================================
  * ======================= PHYSICS ============================
@@ -57,7 +67,7 @@ void HeartbeatTask(void *pvParameters);
 void TofSensorCheckTask(void *pvParameters);
 
 void TofSensorsEnableAll();
-void TimerSetup();
+
 void TimerCheckAndEvaluate();
 
 void BLEsetup();
@@ -255,8 +265,13 @@ void TimerCheckAndEvaluate() {
     
     BBCounter++;
 
-    Serial.printf("BBCounter: %u | %.2f us | %.2f ms | v12: %.2f m/s | E12: %.3f J\n", BBCounter, timerMicroseconds, timerMilliseconds, velocity12, energy12);
+    Serial.printf("BBC: %u | %.2f us | %.2f ms | v: %.2f m/s | E: %.3f J\n", BBCounter, timerMicroseconds, timerMilliseconds, velocity12, energy12);
 
+<<<<<<< main
+    // Timer reset for next measurement
+    TimerReset();
+  }
+=======
     // Reset tht timer for the next shot.
     void TimerReset();
   }  
@@ -289,4 +304,5 @@ void BLEstartAdv(void) {
   Bluefruit.ScanResponse.addName();
   Bluefruit.Advertising.restartOnDisconnect(true);
   Bluefruit.Advertising.start(0);
+>>>>>>> bluetooh
 }
