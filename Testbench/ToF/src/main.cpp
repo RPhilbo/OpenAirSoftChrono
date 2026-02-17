@@ -6,7 +6,7 @@
 // We'll use a single timer and manual "ticks" to ensure 1us = 1 tick.
 HardwareTimer *MyTim;
 
-const uint16_t BBCounterLinear = 420;
+const uint16_t BBCounterLinear = 42;
 uint16_t BBCountertemp = 1;
 
 void shootLinearTimingSlow();
