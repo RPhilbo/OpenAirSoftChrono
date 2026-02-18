@@ -9,6 +9,42 @@
 #define LED_OFF HIGH
 #define LED_ON LOW
 
+#define DEBUGxTaskGetStack
+
+
+/* ============================================================
+ * ======================= Logging ============================
+ * ============================================================ */
+uint32_t  BBCounter = 0;
+uint32_t  FakeCounter = 0;
+#define MAX_LOG_ENTRIES 1000
+
+// --- Packed Data Structure (Total: 9 Bytes) ---
+struct __attribute__((packed)) LogEntry {
+  uint32_t bbCounterAbsolute;   // 4 bytes
+  uint16_t speed;               // 2 bytes
+  uint8_t  weight;              // 1 byte
+  int8_t   temperature;         // 1 byte
+  uint8_t  battery;             // 1 byte
+};
+
+// Storage
+LogEntry dataLog[MAX_LOG_ENTRIES];
+int head = 0;           // Next write position
+bool isSyncing = false; // Flag to manage bulk transfer
+
+
+/* ============================================================
+ * ======================= BLE ================================
+ * ============================================================ */
+// Defining Bluetooth low energy device name and characteristics UUIDs
+#define BLE_NAME "OAC Hello 2"
+//const char BLEname = 'OAC Hello 2';
+BLEService        oacService    = BLEService("19b10000-e8f2-537e-4f6c-d104768a1214");
+BLECharacteristic fakeChar      = BLECharacteristic("19b10042-e8f2-537e-4f6c-d104768a1214");
+BLECharacteristic liveDataChar  = BLECharacteristic("2A58"); // Live updates
+BLECharacteristic commandChar   = BLECharacteristic("2A59"); // Write 0x01 to sync
+
 
 /* ============================================================
  * ======================= Pins ===============================
@@ -33,14 +69,14 @@
 TaskHandle_t HeartbeatTaskHandle;
 TaskHandle_t TofSensorCheckHandle;
 TaskHandle_t TimerCheckAndEvaluateTaskHandle;
+TaskHandle_t BLEsyncFakeTaskHandle;
 
 
 // A "Start Pistol" to prevent running the tasks by using "xTaskCreate" in setup()
 SemaphoreHandle_t startTasksSignal;
 
 
-uint32_t BBCounter = 0;
-uint32_t FakeCounter = 0;
+
 
 /* ============================================================
  * ======================= TIMER ==============================
@@ -62,6 +98,7 @@ float BBWeight = 0.00036f;
 // Function Prototypes
 void HeartbeatTask(void *pvParameters);
 void TofSensorCheckTask(void *pvParameters);
+void BLEsyncFakeTask(void *pvParameters);
 
 void TofSensorsEnableAll();
 
@@ -69,9 +106,10 @@ void TimerCheckAndEvaluate();
 
 void BLEsetup();
 void BLEstartAdv(void);
-BLEService        oacService  = BLEService("19b10000-e8f2-537e-4f6c-d104768a1214");
-BLECharacteristic fakeChar    = BLECharacteristic("19b10042-e8f2-537e-4f6c-d104768a1214");
+void onWriteCommand(uint16_t conn_hdl, BLECharacteristic* chr, uint8_t* data, uint16_t len);
+void performFullSync();
 
+void CheckxTaskWatermark();
 
 /* ============================================================
  * ======================= SETUP ==============================
@@ -133,6 +171,15 @@ void setup() {
       &TofSensorCheckHandle // Task handle
   );
 
+  // Create Task: BLEsyncFakeTask
+  xTaskCreate(
+      BLEsyncFakeTask,   // Function name
+      "BLEsyncFake",        // Name for debugging
+      1024,                 // Stack size (in words)
+      NULL,                 // Parameter to pass
+      4,                    // Priority
+      &BLEsyncFakeTaskHandle // Task handle
+  );
 
   Serial.println("Setup Pre End");
 
@@ -187,7 +234,7 @@ void HeartbeatTask(void *pvParameters) {
     FakeCounter++;
       vTaskDelay(pdMS_TO_TICKS(1000)); // Non-blocking delay
     digitalWrite(LED_RED, LED_OFF);
-      vTaskDelay(pdMS_TO_TICKS(10000)); // Non-blocking delay
+      vTaskDelay(pdMS_TO_TICKS(2000)); // Non-blocking delay
   }
 }
 
@@ -223,6 +270,58 @@ void TofSensorCheckTask(void *pvParameters) {
 }
 
 
+void BLEsyncFakeTask(void *pvParameters) {
+  // Wait here forever until setup gives the signal
+  xSemaphoreTake(startTasksSignal, portMAX_DELAY);
+  
+  // Put the signal back so OTHER tasks can also pass the gate
+  xSemaphoreGive(startTasksSignal);
+  
+  while (1) {
+
+  // Wait here forever until setup gives the signal
+  xSemaphoreTake(startTasksSignal, portMAX_DELAY);
+  
+  // Put the signal back so OTHER tasks can also pass the gate
+  xSemaphoreGive(startTasksSignal);
+
+  // Simulate Sensor Reading (Replace with your actual sensor code)
+  static uint32_t absCounter = 0;
+
+  LogEntry currentRead;
+  currentRead.bbCounterAbsolute = ++absCounter;
+  currentRead.speed             = (uint16_t)random(5000, 25000); 
+  currentRead.weight            = (uint8_t)40;             
+  currentRead.temperature       = (int8_t)random(-10, 40); 
+  currentRead.battery           = (uint8_t)random(42, 100);
+  
+  // Save to RAM Buffer
+  dataLog[head] = currentRead;
+  head = (head + 1) % MAX_LOG_ENTRIES;
+
+  // Serial Debug (UART)
+  Serial.printf("[DEBUG] Cnt:%lu | Spd:%u | Wt:%u | Temp:%d | Bat:%u%%\n", 
+                currentRead.bbCounterAbsolute, 
+                currentRead.speed, 
+                currentRead.weight, 
+                currentRead.temperature, 
+                currentRead.battery);
+
+  // Real-time BLE Update (Notify if phone is listening)
+  if (Bluefruit.connected() && !isSyncing) {
+    liveDataChar.notify(&currentRead, sizeof(LogEntry));
+  }
+
+  // Handle Bulk Sync (If triggered)
+  if (isSyncing) {
+    performFullSync();
+  }
+
+
+  vTaskDelay(pdMS_TO_TICKS(5000)); // Non-blocking delay
+  //delay((uint32_t)random(5000, 9000)); // Sample every x seconds
+  }
+}
 
 
 /* ============================================================
@@ -275,7 +374,8 @@ void TimerCheckAndEvaluate() {
 void BLEsetup(void) {
   // Initialize Bluefruit
   Bluefruit.begin();
-  Bluefruit.setName("OAC Hello");
+  Bluefruit.setTxPower(4);
+  Bluefruit.setName(BLE_NAME);
 
   // Setup Service & Characteristic
   oacService.begin();
@@ -291,6 +391,16 @@ void BLEsetup(void) {
                                             BLE_GATT_CPF_NAMESPACE_BTSIG,
                                             0x0000);  // description: 0 (None)
   fakeChar.begin();
+
+  // Live Data: For real-time updates
+  liveDataChar.setProperties(CHR_PROPS_NOTIFY);
+  liveDataChar.setFixedLen(sizeof(LogEntry));
+  liveDataChar.begin();
+
+  // Command Char: Phone writes here to start Sync
+  commandChar.setProperties(CHR_PROPS_WRITE);
+  commandChar.setWriteCallback(onWriteCommand);
+  commandChar.begin();
 }
 
 void BLEstartAdv(void) {
@@ -299,4 +409,31 @@ void BLEstartAdv(void) {
   Bluefruit.ScanResponse.addName();
   Bluefruit.Advertising.restartOnDisconnect(true);
   Bluefruit.Advertising.start(0);
+}
+
+
+// Callback when phone writes to the Command Characteristic
+void onWriteCommand(uint16_t conn_hdl, BLECharacteristic* chr, uint8_t* data, uint16_t len) {
+  Serial.printf("New Command Received: 0x%02X\n", data[0]);
+  if (len > 0 && data[0] == 0x01) {
+    Serial.println(">>> Sync Requested by Phone!");
+    isSyncing = true;
+  }
+}
+
+
+void performFullSync() {
+  Serial.println(">>> Starting Bulk Sync...");
+  for (int i = 0; i < MAX_LOG_ENTRIES; i++) {
+    int index = (head + i) % MAX_LOG_ENTRIES;
+    
+    // Check if entry exists (if buffer isn't full yet)
+    if (dataLog[index].bbCounterAbsolute == 0) continue;
+
+    while (!liveDataChar.notify(&dataLog[index], sizeof(LogEntry))) {
+      delay(2); // Wait for BLE stack to clear
+    }
+  }
+  Serial.println(">>> Sync Complete.");
+  isSyncing = false;
 }
