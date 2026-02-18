@@ -26,6 +26,7 @@ struct __attribute__((packed)) LogEntry {
   uint8_t  weight;              // 1 byte
   int8_t   temperature;         // 1 byte
   uint8_t  battery;             // 1 byte
+  
 };
 
 // Storage
@@ -88,9 +89,9 @@ extern NRF_TIMER_Type *timer;
 /* ============================================================
  * ======================= PHYSICS ============================
  * ============================================================ */
-static const float TofSensorDistance = 0.02f;
-float BBWeight = 0.00036f;
-
+static const float TofSensorDistance = 0.02f;   // [m]
+float BBWeight_kg = 0.00036f;   // [kg]
+uint8_t BBWeight = 36;          // BBWeight_kg * 100.000 to use uint8_t
 
 /* ============================================================
  * ======================= PROTOTYPES =========================
@@ -172,14 +173,14 @@ void setup() {
   );
 
   // Create Task: BLEsyncFakeTask
-  xTaskCreate(
+  /*xTaskCreate(
       BLEsyncFakeTask,   // Function name
       "BLEsyncFake",        // Name for debugging
       1024,                 // Stack size (in words)
       NULL,                 // Parameter to pass
       4,                    // Priority
       &BLEsyncFakeTaskHandle // Task handle
-  );
+  );*/
 
   Serial.println("Setup Pre End");
 
@@ -234,7 +235,7 @@ void HeartbeatTask(void *pvParameters) {
     FakeCounter++;
       vTaskDelay(pdMS_TO_TICKS(1000)); // Non-blocking delay
     digitalWrite(LED_RED, LED_OFF);
-      vTaskDelay(pdMS_TO_TICKS(2000)); // Non-blocking delay
+      vTaskDelay(pdMS_TO_TICKS(10000)); // Non-blocking delay
   }
 }
 
@@ -288,28 +289,28 @@ void BLEsyncFakeTask(void *pvParameters) {
   // Simulate Sensor Reading (Replace with your actual sensor code)
   static uint32_t absCounter = 0;
 
-  LogEntry currentRead;
-  currentRead.bbCounterAbsolute = ++absCounter;
-  currentRead.speed             = (uint16_t)random(5000, 25000); 
-  currentRead.weight            = (uint8_t)40;             
-  currentRead.temperature       = (int8_t)random(-10, 40); 
-  currentRead.battery           = (uint8_t)random(42, 100);
+  LogEntry LogCurrentSession;
+  LogCurrentSession.bbCounterAbsolute = ++absCounter;
+  LogCurrentSession.speed             = (uint16_t)random(5000, 25000); 
+  LogCurrentSession.weight            = (uint8_t)40;             
+  LogCurrentSession.temperature       = (int8_t)random(-10, 40); 
+  LogCurrentSession.battery           = (uint8_t)random(42, 100);
   
   // Save to RAM Buffer
-  dataLog[head] = currentRead;
+  dataLog[head] = LogCurrentSession;
   head = (head + 1) % MAX_LOG_ENTRIES;
 
   // Serial Debug (UART)
   Serial.printf("[DEBUG] Cnt:%lu | Spd:%u | Wt:%u | Temp:%d | Bat:%u%%\n", 
-                currentRead.bbCounterAbsolute, 
-                currentRead.speed, 
-                currentRead.weight, 
-                currentRead.temperature, 
-                currentRead.battery);
+                LogCurrentSession.bbCounterAbsolute, 
+                LogCurrentSession.speed, 
+                LogCurrentSession.weight, 
+                LogCurrentSession.temperature, 
+                LogCurrentSession.battery);
 
   // Real-time BLE Update (Notify if phone is listening)
   if (Bluefruit.connected() && !isSyncing) {
-    liveDataChar.notify(&currentRead, sizeof(LogEntry));
+    liveDataChar.notify(&LogCurrentSession, sizeof(LogEntry));
   }
 
   // Handle Bulk Sync (If triggered)
@@ -357,17 +358,39 @@ void TimerCheckAndEvaluate() {
 
     //float velocity12 = ((float)20.0f / timerMicroseconds) * 1000.0f;
     float velocity12 = TofSensorDistance / (timerMicroseconds/1000000.0f);
-    float energy12 = 0.5f * BBWeight * velocity12 * velocity12;
+    float energy12 = 0.5f * BBWeight_kg * velocity12 * velocity12;
     
-    BBCounter++;
+    ++BBCounter;
 
     Serial.printf("BBC: %u | %.2f us | %.2f ms | v: %.2f m/s | E: %.3f J\n", BBCounter, timerMicroseconds, timerMilliseconds, velocity12, energy12);
 
-    // Timer reset for next measurement
-    TimerReset();
+    // New RAM Logging Start
+    LogEntry LogCurrentSession;
+    LogCurrentSession.bbCounterAbsolute = BBCounter;
+    LogCurrentSession.speed             = (uint16_t)roundf(velocity12 * 100);
+    LogCurrentSession.weight            = (uint8_t)BBWeight;
+    LogCurrentSession.temperature       = (int8_t)random(-10, 40);
+    LogCurrentSession.battery           = (uint8_t)random(42, 100);
+    
+    // Save to RAM Buffer
+    dataLog[head] = LogCurrentSession;
+    head = (head + 1) % MAX_LOG_ENTRIES;
 
-    // Reset tht timer for the next shot.
-    void TimerReset();
+    // Serial Debug (UART)
+    Serial.printf("[DEBUG] Cnt:%lu | Spd:%u | Wt:%u | Temp:%d | Bat:%u%%\n", 
+                  LogCurrentSession.bbCounterAbsolute, 
+                  LogCurrentSession.speed, 
+                  LogCurrentSession.weight, 
+                  LogCurrentSession.temperature, 
+                  LogCurrentSession.battery);
+      // New RAM Logging END
+
+
+      // Timer reset for next measurement
+      TimerReset();
+
+      // Reset tht timer for the next shot.
+      void TimerReset();
   }  
 }
 
