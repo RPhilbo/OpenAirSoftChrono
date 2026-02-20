@@ -33,6 +33,7 @@ LogEntry dataLog[MAX_LOG_ENTRIES];
 int head = 0;           // Next write position
 bool BLEisSyncing = false; // Flag to manage bulk transfer
 
+uint32_t BLEliveSyncCounter = 0;
 
 /* ============================================================
  * ======================= BLE ================================
@@ -110,7 +111,7 @@ void TimerCheckAndEvaluate();
 void BLEsetup();
 void BLEstartAdv(void);
 void onWriteCommand(uint16_t conn_hdl, BLECharacteristic* chr, uint8_t* data, uint16_t len);
-void performFullSync();
+void BLEperformFullSync();
 
 void CheckxTaskWatermark();
 void connect_callback(uint16_t conn_handle);
@@ -313,17 +314,21 @@ void BLEsyncFakeTask(void *pvParameters) {
                 currentRead.battery);*/
 
   // Real-time BLE Update (Notify if phone is listening)
-  /*if (Bluefruit.connected() && !BLEisSyncing) {
-    BLE_liveDataChar.notify(&currentRead, sizeof(LogEntry));
-  }*/
+  if (Bluefruit.connected() && !BLEisSyncing) {
+      if (BBCounter > BLEliveSyncCounter) {
+        BLE_liveDataChar.notify(&dataLog[BLEliveSyncCounter], sizeof(LogEntry));
+        BLEliveSyncCounter++;
+      }  
+  //BLE_liveDataChar.notify(&currentRead, sizeof(LogEntry));
+  }
 
   // Handle Bulk Sync (If triggered)
   if (BLEisSyncing) {
-    performFullSync();
+    BLEperformFullSync();
   }
 
 
-  vTaskDelay(pdMS_TO_TICKS(5000)); // Non-blocking delay
+  vTaskDelay(pdMS_TO_TICKS(200)); // Non-blocking delay
   //delay((uint32_t)random(5000, 9000)); // Sample every x seconds
   }
 }
@@ -455,7 +460,7 @@ void onWriteCommand(uint16_t conn_hdl, BLECharacteristic* chr, uint8_t* data, ui
 }
 
 
-void performFullSync() {
+void BLEperformFullSync() {
   Serial.println(">>> BLE starting bulk sync...");
   for (int i = 0; i < MAX_LOG_ENTRIES; i++) {
     int index = (head + i) % MAX_LOG_ENTRIES;
@@ -475,8 +480,8 @@ void connect_callback(uint16_t conn_handle) {
   // This code runs ONCE per new connection
   Serial.println(">>> BLE Client Connected!");
   
-  // Reset your counter here
-  //tripCounter = 0; 
+  // syncing the actual value of BBCounter at the moment of connection
+  BLEliveSyncCounter = BBCounter; 
   
   // Optional: You can get info about the phone
   BLEConnection* conn = Bluefruit.Connection(conn_handle);
