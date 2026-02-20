@@ -117,8 +117,6 @@ void CheckxTaskWatermark();
  * ============================================================ */
 
 void setup() {
-  pinMode(VBAT_ENABLE, OUTPUT);   digitalWrite(VBAT_ENABLE, LOW);   // Important when battery is charging, otherwise ADC_Pin may burn.
-
   Serial.begin(115200);
   while(!Serial);
   delay(500);
