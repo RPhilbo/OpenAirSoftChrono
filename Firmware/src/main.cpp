@@ -19,7 +19,7 @@ uint32_t  BBCounter = 0;
 uint32_t  FakeCounter = 0;
 #define MAX_LOG_ENTRIES 1000
 
-// --- Packed Data Structure (Total: 9 Bytes) ---
+// --- Packed Data Structure (Total: 9+2 Bytes) ---
 struct __attribute__((packed)) LogEntry {
   uint32_t bbCounterAbsolute;   // 4 bytes
   uint16_t speed;               // 2 bytes
@@ -94,7 +94,8 @@ extern NRF_TIMER_Type *timer;
  * ======================= PHYSICS ============================
  * ============================================================ */
 static const float TofSensorDistance = 0.02f;
-float BBWeight = 0.00036f;
+uint8_t BBweight = 36;
+float BBWeight_kg = (float)BBweight / 100000.0f;
 
 
 /* ============================================================
@@ -298,7 +299,7 @@ void BLEsyncFakeTask(void *pvParameters) {
   LogEntry currentRead;
   currentRead.bbCounterAbsolute = ++absCounter;
   currentRead.speed             = (uint16_t)random(5000, 25000); 
-  currentRead.weight            = (uint8_t)40;             
+  currentRead.weight            = BBweight;             
   currentRead.temperature       = (int8_t)random(-10, 40); 
   currentRead.battery           = (uint8_t)random(42, 100);
   
@@ -368,14 +369,14 @@ void TimerCheckAndEvaluate() {
 
     //float velocity12 = ((float)20.0f / timerMicroseconds) * 1000.0f;
     float velocity12 = TofSensorDistance / (timerMicroseconds/1000000.0f);
-    float energy12 = 0.5f * BBWeight * velocity12 * velocity12;
+    float energy12 = 0.5f * BBWeight_kg * velocity12 * velocity12;
     
     ++BBCounter;
 
     LogEntry currentRead;
     currentRead.bbCounterAbsolute = BBCounter;
     currentRead.speed             = (uint16_t)roundf(100 * velocity12);
-    currentRead.weight            = (uint8_t)40;
+    currentRead.weight            = BBweight;
     currentRead.temperature       = (int8_t)random(-10, 40);
     currentRead.battery           = (uint8_t)random(42, 100);
     currentRead.energy            = (uint16_t)roundf(1000 * energy12);
