@@ -329,7 +329,7 @@ void BLEsyncFakeTask(void *pvParameters) {
   }
 
 
-  vTaskDelay(pdMS_TO_TICKS(200)); // Non-blocking delay
+  vTaskDelay(pdMS_TO_TICKS(100)); // Non-blocking delay
   //delay((uint32_t)random(5000, 9000)); // Sample every x seconds
   }
 }
@@ -398,7 +398,7 @@ void TimerCheckAndEvaluate() {
     // Timer reset for next measurement
     TimerReset();
 
-    // Reset tht timer for the next shot.
+    // Reset the timer for the next shot.
     void TimerReset();
   }  
 }
@@ -474,6 +474,15 @@ void BLEperformFullSync() {
     while (!BLE_syncDataChar.notify(&dataLog[index], sizeof(LogEntry))) {
       delay(2); // Wait for BLE stack to clear
     }
+
+    // Serial Debug (UART)
+    Serial.printf("[BLE bulk sync] Cnt:%lu | Spd:%u | Wt:%u | Temp:%d | Bat:%u%% | E: %u\n", 
+                  dataLog[index].bbCounterAbsolute, 
+                  dataLog[index].speed, 
+                  dataLog[index].weight, 
+                  dataLog[index].temperature, 
+                  dataLog[index].battery,
+                  dataLog[index].energy);
   }
   Serial.println(">>> BLE bulk sync complete.");
   BLEisSyncing = false;
