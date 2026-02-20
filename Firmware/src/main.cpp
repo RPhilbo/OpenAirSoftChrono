@@ -40,12 +40,12 @@ bool isSyncing = false; // Flag to manage bulk transfer
 // Defining Bluetooth low energy device name and characteristics UUIDs
 #define BLE_NAME "OAC Hello 2"
 //const char BLEname = 'OAC Hello 2';
-BLEService        oacService    = BLEService("19b10000-e8f2-537e-4f6c-d104768a1214");
-BLECharacteristic commandChar   = BLECharacteristic("4242"); // Write 0x01 to sync
+BLEService        BLE_oacService    = BLEService("19b10000-e8f2-537e-4f6c-d104768a1214");
+BLECharacteristic BLE_commandChar   = BLECharacteristic("4242"); // Write 0x01 to sync
 
-BLECharacteristic fakeChar      = BLECharacteristic("4243");
-BLECharacteristic liveDataChar  = BLECharacteristic("4244"); // live update per shot
-BLECharacteristic syncDataChar  = BLECharacteristic("4245"); // sync updates per smartphone request
+BLECharacteristic BLE_fakeChar      = BLECharacteristic("4243");
+BLECharacteristic BLE_liveDataChar  = BLECharacteristic("4244"); // live update per shot
+BLECharacteristic BLE_syncDataChar  = BLECharacteristic("4245"); // sync updates per smartphone request
 
 
 
@@ -312,7 +312,7 @@ void BLEsyncFakeTask(void *pvParameters) {
 
   // Real-time BLE Update (Notify if phone is listening)
   if (Bluefruit.connected() && !isSyncing) {
-    liveDataChar.notify(&currentRead, sizeof(LogEntry));
+    BLE_liveDataChar.notify(&currentRead, sizeof(LogEntry));
   }
 
   // Handle Bulk Sync (If triggered)
@@ -381,39 +381,39 @@ void BLEsetup(void) {
   Bluefruit.setName(BLE_NAME);
 
   // Setup Service & Characteristic
-  oacService.begin();
+  BLE_oacService.begin();
 
   // Setup the Characteristic for WRITING
   // CHR_PROPS_WRITE allows the phone to send data to the nRF52
-  fakeChar.setProperties(CHR_PROPS_READ | CHR_PROPS_NOTIFY);
-  fakeChar.setPermission(SECMODE_OPEN, SECMODE_NO_ACCESS); // Open read/write
-  fakeChar.setFixedLen(4);
-  fakeChar.setPresentationFormatDescriptor(BLE_GATT_CPF_FORMAT_UINT32,
+  BLE_fakeChar.setProperties(CHR_PROPS_READ | CHR_PROPS_NOTIFY);
+  BLE_fakeChar.setPermission(SECMODE_OPEN, SECMODE_NO_ACCESS); // Open read/write
+  BLE_fakeChar.setFixedLen(4);
+  BLE_fakeChar.setPresentationFormatDescriptor(BLE_GATT_CPF_FORMAT_UINT32,
                                             0x0,    // exponent: 0 (Value * 10^0)
                                             0x2700, // unit: 2700 "unitless"
                                             BLE_GATT_CPF_NAMESPACE_BTSIG,
                                             0x0000);  // description: 0 (None)
-  fakeChar.begin();
+  BLE_fakeChar.begin();
 
   // Live Data: For real-time updates
-  liveDataChar.setProperties(CHR_PROPS_NOTIFY);
-  liveDataChar.setFixedLen(sizeof(LogEntry));
-  liveDataChar.begin();
+  BLE_liveDataChar.setProperties(CHR_PROPS_NOTIFY);
+  BLE_liveDataChar.setFixedLen(sizeof(LogEntry));
+  BLE_liveDataChar.begin();
 
   // Command Char: Phone writes here to start Sync
-  commandChar.setProperties(CHR_PROPS_WRITE);
-  commandChar.setWriteCallback(onWriteCommand);
-  commandChar.begin();
+  BLE_commandChar.setProperties(CHR_PROPS_WRITE);
+  BLE_commandChar.setWriteCallback(onWriteCommand);
+  BLE_commandChar.begin();
 
   // sync Data: To read the the RAM buffer to smartphone
-  syncDataChar.setProperties(CHR_PROPS_NOTIFY);
-  syncDataChar.setFixedLen(sizeof(LogEntry));
-  syncDataChar.begin();
+  BLE_syncDataChar.setProperties(CHR_PROPS_NOTIFY);
+  BLE_syncDataChar.setFixedLen(sizeof(LogEntry));
+  BLE_syncDataChar.begin();
 }
 
 void BLEstartAdv(void) {
   Bluefruit.Advertising.addFlags(BLE_GAP_ADV_FLAGS_LE_ONLY_GENERAL_DISC_MODE);
-  Bluefruit.Advertising.addService(oacService);
+  Bluefruit.Advertising.addService(BLE_oacService);
   Bluefruit.ScanResponse.addName();
   Bluefruit.Advertising.restartOnDisconnect(true);
   Bluefruit.Advertising.start(0);
@@ -438,7 +438,7 @@ void performFullSync() {
     // Check if entry exists (if buffer isn't full yet)
     if (dataLog[index].bbCounterAbsolute == 0) continue;
 
-    while (!syncDataChar.notify(&dataLog[index], sizeof(LogEntry))) {
+    while (!BLE_syncDataChar.notify(&dataLog[index], sizeof(LogEntry))) {
       delay(2); // Wait for BLE stack to clear
     }
   }
