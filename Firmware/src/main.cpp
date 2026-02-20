@@ -26,6 +26,7 @@ struct __attribute__((packed)) LogEntry {
   uint8_t  weight;              // 1 byte
   int8_t   temperature;         // 1 byte
   uint8_t  battery;             // 1 byte
+  uint16_t energy;              // 2 bytes
 };
 
 // Storage
@@ -373,22 +374,24 @@ void TimerCheckAndEvaluate() {
 
     LogEntry currentRead;
     currentRead.bbCounterAbsolute = BBCounter;
-    currentRead.speed             = (uint16_t)roundf(100 * velocity12); 
-    currentRead.weight            = (uint8_t)40;             
-    currentRead.temperature       = (int8_t)random(-10, 40); 
+    currentRead.speed             = (uint16_t)roundf(100 * velocity12);
+    currentRead.weight            = (uint8_t)40;
+    currentRead.temperature       = (int8_t)random(-10, 40);
     currentRead.battery           = (uint8_t)random(42, 100);
+    currentRead.energy            = (uint16_t)roundf(1000 * energy12);
     
-    // write into RAM Buffer
+    // write into RAM buffer
     dataLog[head] = currentRead;
     head = (head + 1) % MAX_LOG_ENTRIES;
 
     // Serial Debug (UART)
-    Serial.printf("[RAM DEBUG] Cnt:%lu | Spd:%u | Wt:%u | Temp:%d | Bat:%u%%\n", 
+    Serial.printf("[RAM DEBUG] Cnt:%lu | Spd:%u | Wt:%u | Temp:%d | Bat:%u%% | E: %u\n", 
                   currentRead.bbCounterAbsolute, 
                   currentRead.speed, 
                   currentRead.weight, 
                   currentRead.temperature, 
-                  currentRead.battery);
+                  currentRead.battery,
+                  currentRead.energy);
 
     Serial.printf("BBC: %u | %.2f us | %.2f ms | v: %.2f m/s | E: %.3f J\n", BBCounter, timerMicroseconds, timerMilliseconds, velocity12, energy12);
 
