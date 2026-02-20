@@ -31,7 +31,7 @@ struct __attribute__((packed)) LogEntry {
 // Storage
 LogEntry dataLog[MAX_LOG_ENTRIES];
 int head = 0;           // Next write position
-bool isSyncing = false; // Flag to manage bulk transfer
+bool BLEisSyncing = false; // Flag to manage bulk transfer
 
 
 /* ============================================================
@@ -291,7 +291,7 @@ void BLEsyncFakeTask(void *pvParameters) {
   xSemaphoreGive(startTasksSignal);
 
   // Simulate Sensor Reading (Replace with your actual sensor code)
-  static uint32_t absCounter = 0;
+  /*static uint32_t absCounter = 0;
 
   LogEntry currentRead;
   currentRead.bbCounterAbsolute = ++absCounter;
@@ -310,15 +310,15 @@ void BLEsyncFakeTask(void *pvParameters) {
                 currentRead.speed, 
                 currentRead.weight, 
                 currentRead.temperature, 
-                currentRead.battery);
+                currentRead.battery);*/
 
   // Real-time BLE Update (Notify if phone is listening)
-  if (Bluefruit.connected() && !isSyncing) {
+  /*if (Bluefruit.connected() && !BLEisSyncing) {
     BLE_liveDataChar.notify(&currentRead, sizeof(LogEntry));
-  }
+  }*/
 
   // Handle Bulk Sync (If triggered)
-  if (isSyncing) {
+  if (BLEisSyncing) {
     performFullSync();
   }
 
@@ -364,7 +364,26 @@ void TimerCheckAndEvaluate() {
     float velocity12 = TofSensorDistance / (timerMicroseconds/1000000.0f);
     float energy12 = 0.5f * BBWeight * velocity12 * velocity12;
     
-    BBCounter++;
+    ++BBCounter;
+
+    LogEntry currentRead;
+    currentRead.bbCounterAbsolute = BBCounter;
+    currentRead.speed             = (uint16_t)random(5000, 25000); 
+    currentRead.weight            = (uint8_t)40;             
+    currentRead.temperature       = (int8_t)random(-10, 40); 
+    currentRead.battery           = (uint8_t)random(42, 100);
+    
+    // write into RAM Buffer
+    dataLog[head] = currentRead;
+    head = (head + 1) % MAX_LOG_ENTRIES;
+
+    // Serial Debug (UART)
+    Serial.printf("[DEBUG] Cnt:%lu | Spd:%u | Wt:%u | Temp:%d | Bat:%u%%\n", 
+                  currentRead.bbCounterAbsolute, 
+                  currentRead.speed, 
+                  currentRead.weight, 
+                  currentRead.temperature, 
+                  currentRead.battery);
 
     Serial.printf("BBC: %u | %.2f us | %.2f ms | v: %.2f m/s | E: %.3f J\n", BBCounter, timerMicroseconds, timerMilliseconds, velocity12, energy12);
 
@@ -428,16 +447,16 @@ void BLEstartAdv(void) {
 
 // Callback when phone writes to the Command Characteristic
 void onWriteCommand(uint16_t conn_hdl, BLECharacteristic* chr, uint8_t* data, uint16_t len) {
-  Serial.printf("New Command Received: 0x%02X\n", data[0]);
+  Serial.printf(">>> BLE new command received: 0x%02X\n", data[0]);
   if (len > 0 && data[0] == 0x01) {
-    Serial.println(">>> Sync Requested by Phone!");
-    isSyncing = true;
+    Serial.println(">>> BLE bulk sync requested by phone!");
+    BLEisSyncing = true;
   }
 }
 
 
 void performFullSync() {
-  Serial.println(">>> Starting Bulk Sync...");
+  Serial.println(">>> BLE starting bulk sync...");
   for (int i = 0; i < MAX_LOG_ENTRIES; i++) {
     int index = (head + i) % MAX_LOG_ENTRIES;
     
@@ -448,8 +467,8 @@ void performFullSync() {
       delay(2); // Wait for BLE stack to clear
     }
   }
-  Serial.println(">>> Sync Complete.");
-  isSyncing = false;
+  Serial.println(">>> BLE bulk sync complete.");
+  BLEisSyncing = false;
 }
 
 void connect_callback(uint16_t conn_handle) {
@@ -463,7 +482,7 @@ void connect_callback(uint16_t conn_handle) {
   BLEConnection* conn = Bluefruit.Connection(conn_handle);
   char peer_name[32] = { 0 };
   conn->getPeerName(peer_name, sizeof(peer_name));
-  Serial.printf("Connected to: %s\n", peer_name);
+  Serial.printf(">>> BLE Connected to: %s\n", peer_name);
 }
 
 void disconnect_callback(uint16_t conn_handle, uint8_t reason) {
