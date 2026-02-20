@@ -126,8 +126,9 @@ void disconnect_callback(uint16_t conn_handle, uint8_t reason);
 void setup() {
   pinMode(VBAT_ENABLE, OUTPUT);   digitalWrite(VBAT_ENABLE, LOW);   // Important when battery is charging, otherwise ADC_Pin may burn.
 
+  delay(2000);
   Serial.begin(115200);
-  while(!Serial);
+  //while(!Serial);
   delay(500);
   Serial.println("\nSetup Start");
 
