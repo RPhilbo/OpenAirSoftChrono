@@ -113,6 +113,8 @@ void onWriteCommand(uint16_t conn_hdl, BLECharacteristic* chr, uint8_t* data, ui
 void performFullSync();
 
 void CheckxTaskWatermark();
+void connect_callback(uint16_t conn_handle);
+void disconnect_callback(uint16_t conn_handle, uint8_t reason);
 
 /* ============================================================
  * ======================= SETUP ==============================
@@ -383,6 +385,10 @@ void BLEsetup(void) {
   // Setup Service & Characteristic
   BLE_oacService.begin();
 
+  // Set callbacks for every BLE connect and disconnect
+  Bluefruit.Periph.setConnectCallback(connect_callback);
+  Bluefruit.Periph.setDisconnectCallback(disconnect_callback);
+
   // Setup the Characteristic for WRITING
   // CHR_PROPS_WRITE allows the phone to send data to the nRF52
   BLE_fakeChar.setProperties(CHR_PROPS_READ | CHR_PROPS_NOTIFY);
@@ -444,4 +450,22 @@ void performFullSync() {
   }
   Serial.println(">>> Sync Complete.");
   isSyncing = false;
+}
+
+void connect_callback(uint16_t conn_handle) {
+  // This code runs ONCE per new connection
+  Serial.println(">>> BLE Client Connected!");
+  
+  // Reset your counter here
+  //tripCounter = 0; 
+  
+  // Optional: You can get info about the phone
+  BLEConnection* conn = Bluefruit.Connection(conn_handle);
+  char peer_name[32] = { 0 };
+  conn->getPeerName(peer_name, sizeof(peer_name));
+  Serial.printf("Connected to: %s\n", peer_name);
+}
+
+void disconnect_callback(uint16_t conn_handle, uint8_t reason) {
+  Serial.printf(">>> BLE Disconnected, reason = 0x%02X\n", reason);
 }
