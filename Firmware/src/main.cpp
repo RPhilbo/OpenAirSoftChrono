@@ -373,7 +373,7 @@ void TimerCheckAndEvaluate() {
 
     LogEntry currentRead;
     currentRead.bbCounterAbsolute = BBCounter;
-    currentRead.speed             = (uint16_t)random(5000, 25000); 
+    currentRead.speed             = (uint16_t)roundf(100 * velocity12); 
     currentRead.weight            = (uint8_t)40;             
     currentRead.temperature       = (int8_t)random(-10, 40); 
     currentRead.battery           = (uint8_t)random(42, 100);
@@ -383,7 +383,7 @@ void TimerCheckAndEvaluate() {
     head = (head + 1) % MAX_LOG_ENTRIES;
 
     // Serial Debug (UART)
-    Serial.printf("[DEBUG] Cnt:%lu | Spd:%u | Wt:%u | Temp:%d | Bat:%u%%\n", 
+    Serial.printf("[RAM DEBUG] Cnt:%lu | Spd:%u | Wt:%u | Temp:%d | Bat:%u%%\n", 
                   currentRead.bbCounterAbsolute, 
                   currentRead.speed, 
                   currentRead.weight, 
