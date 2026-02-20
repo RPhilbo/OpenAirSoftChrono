@@ -41,9 +41,12 @@ bool isSyncing = false; // Flag to manage bulk transfer
 #define BLE_NAME "OAC Hello 2"
 //const char BLEname = 'OAC Hello 2';
 BLEService        oacService    = BLEService("19b10000-e8f2-537e-4f6c-d104768a1214");
-BLECharacteristic fakeChar      = BLECharacteristic("19b10042-e8f2-537e-4f6c-d104768a1214");
-BLECharacteristic liveDataChar  = BLECharacteristic("2A58"); // Live updates
-BLECharacteristic commandChar   = BLECharacteristic("2A59"); // Write 0x01 to sync
+BLECharacteristic commandChar   = BLECharacteristic("4242"); // Write 0x01 to sync
+
+BLECharacteristic fakeChar      = BLECharacteristic("4243");
+BLECharacteristic liveDataChar  = BLECharacteristic("4244"); // live update per shot
+BLECharacteristic syncDataChar  = BLECharacteristic("4245"); // sync updates per smartphone request
+
 
 
 /* ============================================================
@@ -226,15 +229,15 @@ void HeartbeatTask(void *pvParameters) {
     Serial.println("Heartbeat Task is alive");
 
     // Update the characteristic and NOTIFY the connected app
-    if (Bluefruit.connected()) {
+    /*if (Bluefruit.connected()) {
       fakeChar.notify32(FakeCounter);
       Serial.printf("Sent value: %d\n", FakeCounter);
     }
 
-    FakeCounter++;
+    FakeCounter++;*/
       vTaskDelay(pdMS_TO_TICKS(1000)); // Non-blocking delay
     digitalWrite(LED_RED, LED_OFF);
-      vTaskDelay(pdMS_TO_TICKS(2000)); // Non-blocking delay
+      vTaskDelay(pdMS_TO_TICKS(10000)); // Non-blocking delay
   }
 }
 
@@ -401,6 +404,11 @@ void BLEsetup(void) {
   commandChar.setProperties(CHR_PROPS_WRITE);
   commandChar.setWriteCallback(onWriteCommand);
   commandChar.begin();
+
+  // sync Data: To read the the RAM buffer to smartphone
+  syncDataChar.setProperties(CHR_PROPS_NOTIFY);
+  syncDataChar.setFixedLen(sizeof(LogEntry));
+  syncDataChar.begin();
 }
 
 void BLEstartAdv(void) {
@@ -430,7 +438,7 @@ void performFullSync() {
     // Check if entry exists (if buffer isn't full yet)
     if (dataLog[index].bbCounterAbsolute == 0) continue;
 
-    while (!liveDataChar.notify(&dataLog[index], sizeof(LogEntry))) {
+    while (!syncDataChar.notify(&dataLog[index], sizeof(LogEntry))) {
       delay(2); // Wait for BLE stack to clear
     }
   }
