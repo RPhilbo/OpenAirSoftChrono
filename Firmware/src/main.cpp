@@ -3,6 +3,7 @@
 #include <Wire.h>
 #include <bluefruit.h>
 
+#include "battery.h"
 #include "config.h"
 #include "timer_control.h"
 
@@ -97,6 +98,7 @@ static const float TofSensorDistance = 0.02f;
 uint8_t BBweight = 36;
 float BBWeight_kg = (float)BBweight / 100000.0f;
 
+uint8_t BatteryVoltage;   // The uint8_t value of battery voltage for logging and BLE.
 
 /* ============================================================
  * ======================= PROTOTYPES =========================
@@ -234,7 +236,13 @@ void HeartbeatTask(void *pvParameters) {
 
   while (1) {
     digitalWrite(LED_RED, LED_ON);
-    Serial.println("Heartbeat Task is alive");
+    //Serial.println("Heartbeat Task is alive");
+
+    // Measure the battery voltage
+    float BatteryVoltageFloat = readBatteryVoltage();
+    BatteryVoltage = uint8_t(BatteryVoltageFloat * 50);
+
+    Serial.printf("Heartbeat Task - Battery Voltage: %.2f V \n", BatteryVoltageFloat);
 
     // Update the characteristic and NOTIFY the connected app
     /*if (Bluefruit.connected()) {
@@ -381,7 +389,8 @@ void TimerCheckAndEvaluate() {
     currentRead.speed             = (uint16_t)roundf(100 * velocity12);
     currentRead.weight            = BBweight;
     currentRead.temperature       = (int8_t)random(-10, 40);
-    currentRead.battery           = (uint8_t)random(42, 100);
+    //currentRead.battery           = (uint8_t)random(42, 100);
+    currentRead.battery           = (uint8_t)BatteryVoltage;
     currentRead.energy            = (uint16_t)roundf(1000 * energy12);
     
     // write into RAM buffer
@@ -389,7 +398,7 @@ void TimerCheckAndEvaluate() {
     head = (head + 1) % MAX_LOG_ENTRIES;
 
     // Serial Debug (UART)
-    Serial.printf("[RAM DEBUG] Cnt:%lu | Spd:%u | Wt:%u | Temp:%d | Bat:%u%% | E: %u\n", 
+    Serial.printf("[RAM DEBUG] Cnt:%lu | Spd:%u | Wt:%u | Temp:%d | Bat:%u | E: %u\n", 
                   currentRead.bbCounterAbsolute, 
                   currentRead.speed, 
                   currentRead.weight, 
@@ -397,7 +406,13 @@ void TimerCheckAndEvaluate() {
                   currentRead.battery,
                   currentRead.energy);
 
-    Serial.printf("BBC: %u | %.2f us | %.2f ms | v: %.2f m/s | E: %.3f J\n", BBCounter, timerMicroseconds, timerMilliseconds, velocity12, energy12);
+    Serial.printf("[Serial DEBUG] bbC: %u | %.2f us | v: %.2f m/s | %.2f g | E: %.3f J | Bat: %.2f V \n",
+                  BBCounter,
+                  timerMicroseconds,
+                  velocity12,
+                  (float)(BBweight / 100.0f),
+                  energy12,
+                  (float)(BatteryVoltage / 50.f));
 
     // Timer reset for next measurement
     TimerReset();
