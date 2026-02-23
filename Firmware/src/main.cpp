@@ -16,6 +16,7 @@
 /* ============================================================
  * ======================= Logging ============================
  * ============================================================ */
+
 uint32_t  BBCounter = 0;
 uint32_t  FakeCounter = 0;
 #define MAX_LOG_ENTRIES 1000
@@ -33,7 +34,8 @@ struct __attribute__((packed)) LogEntry {
 // Storage
 LogEntry dataLog[MAX_LOG_ENTRIES];
 int head = 0;           // Next write position
-bool BLEisSyncing = false; // Flag to manage bulk transfer
+bool BLEaskForFullSync    = false; // Flag to manage bulk transfer
+bool BLEaskForPartialSync = false; // Flag to manage partial transfer
 
 uint32_t BLEliveSyncCounter = 0;
 
@@ -41,16 +43,19 @@ uint32_t BLEliveSyncCounter = 0;
  * ======================= BLE ================================
  * ============================================================ */
 // Defining Bluetooth low energy device name and characteristics UUIDs
-#define BLE_NAME "OAC Hello 2"
+#define BLE_NAME "OpenAirsoftChrono SN001"
 //const char BLEname = 'OAC Hello 2';
 BLEService        BLE_oacService    = BLEService("19b10000-e8f2-537e-4f6c-d104768a1214");
-BLECharacteristic BLE_commandChar   = BLECharacteristic("4242"); // Write 0x01 to sync
 
-BLECharacteristic BLE_fakeChar      = BLECharacteristic("4243");
+// BLE characters with downlink possibility (getting data from smartphone)
+BLECharacteristic BLE_commandChar   = BLECharacteristic("4242"); // Write 0x01 to sync
+BLECharacteristic BLE_bbWeightChar  = BLECharacteristic("4243"); // bbWeight to be changed via smartphone
+
+// BLE characters upnlink only (smartphone is limited to read)
 BLECharacteristic BLE_liveDataChar  = BLECharacteristic("4244"); // live update per shot
 BLECharacteristic BLE_syncDataChar  = BLECharacteristic("4245"); // sync updates per smartphone request
 
-
+BLECharacteristic BLE_fakeChar      = BLECharacteristic("4249");
 
 /* ============================================================
  * ======================= Pins ===============================
@@ -94,6 +99,7 @@ extern NRF_TIMER_Type *timer;
 /* ============================================================
  * ======================= PHYSICS ============================
  * ============================================================ */
+
 static const float TofSensorDistance = 0.02f;
 uint8_t BBweight = 36;
 float BBWeight_kg = (float)BBweight / 100000.0f;
@@ -114,12 +120,15 @@ void TimerCheckAndEvaluate();
 
 void BLEsetup();
 void BLEstartAdv(void);
-void onWriteCommand(uint16_t conn_hdl, BLECharacteristic* chr, uint8_t* data, uint16_t len);
+void BLE_commandCharCallback(uint16_t conn_hdl, BLECharacteristic* chr, uint8_t* data, uint16_t len);
+void BLE_bbWeightCharCallback(uint16_t conn_hdl, BLECharacteristic* chr, uint8_t* data, uint16_t len);
 void BLEperformFullSync();
+void BLEperformPartialSync();
 
 void CheckxTaskWatermark();
 void connect_callback(uint16_t conn_handle);
 void disconnect_callback(uint16_t conn_handle, uint8_t reason);
+
 
 /* ============================================================
  * ======================= SETUP ==============================
@@ -327,7 +336,7 @@ void BLEsyncFakeTask(void *pvParameters) {
                 currentRead.battery);*/
 
   // Real-time BLE Update (Notify if phone is listening)
-  if (Bluefruit.connected() && !BLEisSyncing) {
+  if (Bluefruit.connected() && !BLEaskForFullSync) {
       if (BBCounter > BLEliveSyncCounter) {
         BLE_liveDataChar.notify(&dataLog[BLEliveSyncCounter], sizeof(LogEntry));
         BLEliveSyncCounter++;
@@ -336,8 +345,13 @@ void BLEsyncFakeTask(void *pvParameters) {
   }
 
   // Handle Bulk Sync (If triggered)
-  if (BLEisSyncing) {
+  if (BLEaskForFullSync) {
     BLEperformFullSync();
+  }
+
+  // Handle Partial Sync (If triggered)
+  if (BLEaskForPartialSync) {
+    BLEperformPartialSync();
   }
 
 
@@ -376,7 +390,7 @@ void TimerCheckAndEvaluate() {
   
   if (ticks > 1000) {
     float timerMicroseconds = (float)ticks / 16.0f;
-    float timerMilliseconds = timerMicroseconds / 1000;
+    //float timerMilliseconds = timerMicroseconds / 1000;
 
     //float velocity12 = ((float)20.0f / timerMicroseconds) * 1000.0f;
     float velocity12 = TofSensorDistance / (timerMicroseconds/1000000.0f);
@@ -454,8 +468,13 @@ void BLEsetup(void) {
 
   // Command Char: Phone writes here to start Sync
   BLE_commandChar.setProperties(CHR_PROPS_WRITE);
-  BLE_commandChar.setWriteCallback(onWriteCommand);
+  BLE_commandChar.setWriteCallback(BLE_commandCharCallback);
   BLE_commandChar.begin();
+
+  // BB Weight Char: Phone writes here to change the bbWeight
+  BLE_bbWeightChar.setProperties(CHR_PROPS_WRITE);
+  BLE_bbWeightChar.setWriteCallback(BLE_bbWeightCharCallback);
+  BLE_bbWeightChar.begin();
 
   // sync Data: To read the the RAM buffer to smartphone
   BLE_syncDataChar.setProperties(CHR_PROPS_NOTIFY);
@@ -473,12 +492,56 @@ void BLEstartAdv(void) {
 
 
 // Callback when phone writes to the Command Characteristic
-void onWriteCommand(uint16_t conn_hdl, BLECharacteristic* chr, uint8_t* data, uint16_t len) {
+void BLE_commandCharCallback(uint16_t conn_hdl, BLECharacteristic* chr, uint8_t* data, uint16_t len) {
   Serial.printf(">>> BLE new command received: 0x%02X\n", data[0]);
-  if (len > 0 && data[0] == 0x01) {
+  /*if (len > 0 && data[0] == 0x42) {
     Serial.println(">>> BLE bulk sync requested by phone!");
-    BLEisSyncing = true;
+    BLEaskForFullSync = true;
+  }*/
+  if (len > 0) {
+      switch(data[0]) {
+    case 0x42:
+      // full sync
+      Serial.println(">>> BLE bulk sync requested by phone!");
+      BLEaskForFullSync = true;
+      break;
+
+    case 0x43:
+      // partial sync
+      Serial.println(">>> BLE partial sync requested by phone!");
+      BLEaskForPartialSync = true;
+      break;
+
+    default:
+      Serial.println(">>> Faulty code?");
+    }
   }
+}
+
+// Callback when phone writes to the bbWeight Characteristic
+void BLE_bbWeightCharCallback(uint16_t conn_hdl, BLECharacteristic* chr, uint8_t* data, uint16_t len) {
+  Serial.printf(">>> BLE new BB Weight received: 0x%02X\n", data[0]);
+  if (len == 0) return;
+
+  // Define valid weights
+  static const uint8_t validWeights[] = {12, 20, 25, 28, 30, 32, 36, 40, 43};
+
+    uint8_t val = data[0];
+    bool found = false;
+
+    for (uint8_t w : validWeights) {
+      if (val == w) {
+        BBweight = val; BBWeight_kg = (float)BBweight / 100000.0f;
+        found = true;
+        break;
+      }
+    }
+
+    if (found) {
+      Serial.printf(">>> BLE: Set BB weight to %.2f g\n", (float)(BBweight / 100.0f));
+    } else {
+      Serial.println(">>> Faulty weight code");
+    }
 }
 
 
@@ -504,8 +567,34 @@ void BLEperformFullSync() {
                   dataLog[index].energy);
   }
   Serial.println(">>> BLE bulk sync complete.");
-  BLEisSyncing = false;
+  BLEaskForFullSync = false;
 }
+
+
+// sync the last n log entries
+void BLEperformPartialSync() {
+  Serial.println(">>> BLE: starting partial sync...");
+  for (uint32_t i = BBCounter-20; i < BBCounter; i++) {    
+    // Check if entry exists (if buffer isn't full yet)
+    if (dataLog[i].bbCounterAbsolute == 0) continue;
+
+    while (!BLE_syncDataChar.notify(&dataLog[i], sizeof(LogEntry))) {
+      delay(2); // Wait for BLE stack to clear
+    }
+
+    // Serial Debug (UART)
+    Serial.printf("[BLE partial sync] Cnt:%lu | Spd:%u | Wt:%u | Temp:%d | Bat:%u | E: %u\n", 
+                  dataLog[i].bbCounterAbsolute, 
+                  dataLog[i].speed, 
+                  dataLog[i].weight, 
+                  dataLog[i].temperature, 
+                  dataLog[i].battery,
+                  dataLog[i].energy);
+  }
+  Serial.println(">>> BLE partial sync complete.");
+  BLEaskForPartialSync = false;
+}
+
 
 void connect_callback(uint16_t conn_handle) {
   // This code runs ONCE per new connection
