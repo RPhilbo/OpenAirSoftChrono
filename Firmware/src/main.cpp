@@ -12,6 +12,13 @@
 
 #define DEBUGxTaskGetStack
 
+/* ============================================================
+ * ======================= GLOBALS ============================
+ * ============================================================ */
+
+uint32_t part     = NRF_FICR->INFO.PART;
+uint32_t variant  = NRF_FICR->INFO.VARIANT;
+uint64_t UID      = (NRF_FICR->DEVICEID[1] << 32) | NRF_FICR->DEVICEID[0];
 
 /* ============================================================
  * ======================= Logging ============================
@@ -43,7 +50,7 @@ uint32_t BLEliveSyncCounter = 0;
  * ======================= BLE ================================
  * ============================================================ */
 // Defining Bluetooth low energy device name and characteristics UUIDs
-#define BLE_NAME "OpenAirsoftChrono SN001"
+#define BLE_NAME "OpenAirsoftChrono "
 //const char BLEname = 'OAC Hello 2';
 BLEService        BLE_oacService    = BLEService("19b10000-e8f2-537e-4f6c-d104768a1214");
 
@@ -143,14 +150,14 @@ void setup() {
   delay(500);
   Serial.println("\nSetup Start");
 
-  // Read the two 32-bit parts of the 64-bit ID
-  uint64_t UID_lo   = NRF_FICR->DEVICEID[0];
-  uint64_t UID_hi   = NRF_FICR->DEVICEID[1];
-  uint64_t UID = (UID_hi <<32) | UID_lo;
-
-  uint32_t part = NRF_FICR->INFO.PART;
-  uint32_t variant = NRF_FICR->INFO.VARIANT;
+  // Read the MCU part, variant and unique ID
+  part = NRF_FICR->INFO.PART;
+  variant = NRF_FICR->INFO.VARIANT;
+  UID = (NRF_FICR->DEVICEID[1] << 32) | NRF_FICR->DEVICEID[0];
   Serial.printf("[HW] Part: %lx | Variant: %lx | UID: %lx \n", part, variant, UID);
+
+  
+
 
   // Setup LED pins as OUTPUT and OFF
   pinMode(LED_RED, OUTPUT);   digitalWrite(LED_RED,   LED_OFF);
@@ -448,8 +455,19 @@ void TimerCheckAndEvaluate() {
 void BLEsetup(void) {
   // Initialize Bluefruit
   Bluefruit.begin();
-  Bluefruit.setTxPower(4);
-  Bluefruit.setName(BLE_NAME);
+  Bluefruit.setTxPower(0);
+  //Bluefruit.setName(BLE_NAME);
+
+  // Using UID for unique BLE device name
+  // XOR all 8 bytes of the UID together into one byte
+  uint8_t hashedUID = 0;
+  for (int i = 0; i < 64; i += 8) {
+      hashedUID ^= (uint8_t)(UID >> i);
+  }
+
+  char bleName[24];
+  sprintf(bleName, "OpenAirsoftChrono-#%02X", hashedUID);
+  Bluefruit.setName(bleName);
 
   // Setup Service & Characteristic
   BLE_oacService.begin();
