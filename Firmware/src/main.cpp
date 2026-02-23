@@ -143,6 +143,15 @@ void setup() {
   delay(500);
   Serial.println("\nSetup Start");
 
+  // Read the two 32-bit parts of the 64-bit ID
+  uint64_t UID_lo   = NRF_FICR->DEVICEID[0];
+  uint64_t UID_hi   = NRF_FICR->DEVICEID[1];
+  uint64_t UID = (UID_hi <<32) | UID_lo;
+
+  uint32_t part = NRF_FICR->INFO.PART;
+  uint32_t variant = NRF_FICR->INFO.VARIANT;
+  Serial.printf("[HW] Part: %lx | Variant: %lx | UID: %lx \n", part, variant, UID);
+
   // Setup LED pins as OUTPUT and OFF
   pinMode(LED_RED, OUTPUT);   digitalWrite(LED_RED,   LED_OFF);
   pinMode(LED_GREEN, OUTPUT); digitalWrite(LED_GREEN, LED_OFF);
