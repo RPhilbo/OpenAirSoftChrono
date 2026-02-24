@@ -2,6 +2,7 @@
 #include <variant.h>
 #include <Wire.h>
 #include <bluefruit.h>
+#include <RTClib.h>
 
 #include "battery.h"
 #include "config.h"
@@ -19,6 +20,8 @@
 uint32_t part     = NRF_FICR->INFO.PART;
 uint32_t variant  = NRF_FICR->INFO.VARIANT;
 uint64_t UID      = (NRF_FICR->DEVICEID[1] << 32) | NRF_FICR->DEVICEID[0];
+DateTime TimeNow;
+float tempMCU;    // NRF52 internal Die temp. Expect an offset of 2-5K
 
 /* ============================================================
  * ======================= Logging ============================
@@ -28,7 +31,7 @@ uint32_t  BBCounter = 0;
 uint32_t  FakeCounter = 0;
 #define MAX_LOG_ENTRIES 1000
 
-// --- Packed Data Structure (Total: 9+2 Bytes) ---
+// --- Packed Data Structure (Total: 9+2+6 Bytes) ---
 struct __attribute__((packed)) LogEntry {
   uint32_t bbCounterAbsolute;   // 4 bytes
   uint16_t speed;               // 2 bytes
@@ -36,6 +39,12 @@ struct __attribute__((packed)) LogEntry {
   int8_t   temperature;         // 1 byte
   uint8_t  battery;             // 1 byte
   uint16_t energy;              // 2 bytes    Can be reducted later, because calc out of two other log entries.
+  uint8_t year;
+  uint8_t month;
+  uint8_t day;
+  uint8_t hr;
+  uint8_t min;
+  uint8_t sec;
 };
 
 // Storage
@@ -61,6 +70,7 @@ BLECharacteristic BLE_bbWeightChar  = BLECharacteristic("4243"); // bbWeight to 
 // BLE characters upnlink only (smartphone is limited to read)
 BLECharacteristic BLE_liveDataChar  = BLECharacteristic("4244"); // live update per shot
 BLECharacteristic BLE_syncDataChar  = BLECharacteristic("4245"); // sync updates per smartphone request
+BLECharacteristic BLE_syncTimeChar  = BLECharacteristic("4246"); // sync date and time
 
 BLECharacteristic BLE_fakeChar      = BLECharacteristic("4249");
 
@@ -102,6 +112,8 @@ SemaphoreHandle_t startTasksSignal;
 
 extern NRF_TIMER_Type *timer;
 
+// Create a software RTC instance
+RTC_Millis rtc;
 
 /* ============================================================
  * ======================= PHYSICS ============================
@@ -129,12 +141,18 @@ void BLEsetup();
 void BLEstartAdv(void);
 void BLE_commandCharCallback(uint16_t conn_hdl, BLECharacteristic* chr, uint8_t* data, uint16_t len);
 void BLE_bbWeightCharCallback(uint16_t conn_hdl, BLECharacteristic* chr, uint8_t* data, uint16_t len);
+void BLE_syncTimeCharCallback(uint16_t conn_hdl, BLECharacteristic* chr, uint8_t* data, uint16_t len);
 void BLEperformFullSync();
 void BLEperformPartialSync();
 
 void CheckxTaskWatermark();
 void connect_callback(uint16_t conn_handle);
 void disconnect_callback(uint16_t conn_handle, uint8_t reason);
+
+void getTimeNow();
+void printTimeNow();
+
+float getTempNRF();
 
 
 /* ============================================================
@@ -156,8 +174,8 @@ void setup() {
   UID = (NRF_FICR->DEVICEID[1] << 32) | NRF_FICR->DEVICEID[0];
   Serial.printf("[HW] Part: %lx | Variant: %lx | UID: %lx \n", part, variant, UID);
 
-  
-
+  // Initialize RTC with a default time (Jan 1 2000)
+    rtc.begin(DateTime(2000, 1, 1, 0, 0, 0));
 
   // Setup LED pins as OUTPUT and OFF
   pinMode(LED_RED, OUTPUT);   digitalWrite(LED_RED,   LED_OFF);
@@ -264,21 +282,41 @@ void HeartbeatTask(void *pvParameters) {
     //Serial.println("Heartbeat Task is alive");
 
     // Measure the battery voltage
-    float BatteryVoltageFloat = readBatteryVoltage();
-    BatteryVoltage = uint8_t(BatteryVoltageFloat * 50);
+    //float BatteryVoltageFloat = readBatteryVoltage();
+    //BatteryVoltage = uint8_t(BatteryVoltageFloat * 50);
 
-    Serial.printf("Heartbeat Task - Battery Voltage: %.2f V \n", BatteryVoltageFloat);
+    getTimeNow();
+
+    if (FakeCounter == 10)
+    {
+      // Measure the battery voltage
+      float BatteryVoltageFloat = readBatteryVoltage();
+      BatteryVoltage = uint8_t(BatteryVoltageFloat * 50);
+
+      // read the temperature from nrf
+      tempMCU = getTempNRF();
+      
+      Serial.printf("Heartbeat Task - Battery Voltage: %.2f V | %.1f °C \n", BatteryVoltageFloat, tempMCU);
+
+      //getTimeNow();
+      printTimeNow();
+
+      FakeCounter = 0;
+    }
+    
+    //Serial.printf("Heartbeat Task - Battery Voltage: %.2f V \n", BatteryVoltageFloat);
+    
 
     // Update the characteristic and NOTIFY the connected app
     /*if (Bluefruit.connected()) {
       fakeChar.notify32(FakeCounter);
       Serial.printf("Sent value: %d\n", FakeCounter);
-    }
+    }*/
 
-    FakeCounter++;*/
-      vTaskDelay(pdMS_TO_TICKS(1000)); // Non-blocking delay
+    FakeCounter++;
+      vTaskDelay(pdMS_TO_TICKS(500)); // Non-blocking delay
     digitalWrite(LED_RED, LED_OFF);
-      vTaskDelay(pdMS_TO_TICKS(10000)); // Non-blocking delay
+      vTaskDelay(pdMS_TO_TICKS(500)); // Non-blocking delay
   }
 }
 
@@ -418,10 +456,17 @@ void TimerCheckAndEvaluate() {
     currentRead.bbCounterAbsolute = BBCounter;
     currentRead.speed             = (uint16_t)roundf(100 * velocity12);
     currentRead.weight            = BBweight;
-    currentRead.temperature       = (int8_t)random(-10, 40);
+    //currentRead.temperature       = (int8_t)random(-10, 40);
+    currentRead.temperature       = (int8_t)roundf(tempMCU);
     //currentRead.battery           = (uint8_t)random(42, 100);
     currentRead.battery           = (uint8_t)BatteryVoltage;
     currentRead.energy            = (uint16_t)roundf(1000 * energy12);
+    currentRead.year              = (uint8_t)(TimeNow.year() - 2000);
+    currentRead.month             = TimeNow.month();
+    currentRead.day               = TimeNow.day();
+    currentRead.hr                = TimeNow.hour();
+    currentRead.min               = TimeNow.minute();
+    currentRead.sec               = TimeNow.second();
     
     // write into RAM buffer
     dataLog[head] = currentRead;
@@ -436,13 +481,20 @@ void TimerCheckAndEvaluate() {
                   currentRead.battery,
                   currentRead.energy);
 
-    Serial.printf("[Serial DEBUG] bbC: %u | %.2f us | v: %.2f m/s | %.2f g | E: %.3f J | Bat: %.2f V \n",
+    Serial.printf("[Serial DEBUG] bbC: %u | %.2f us | v: %.2f m/s | %.2f g | E: %.3f J | Bat: %.2f V | 20%02d-%02d-%02d %02d:%02d:%02d \n",
                   BBCounter,
                   timerMicroseconds,
                   velocity12,
                   (float)(BBweight / 100.0f),
                   energy12,
-                  (float)(BatteryVoltage / 50.f));
+                  (float)(BatteryVoltage / 50.f),
+                  currentRead.year,
+                  currentRead.month,
+                  currentRead.day,
+                  currentRead.hr,
+                  currentRead.min,
+                  currentRead.sec
+                );
 
     // Timer reset for next measurement
     TimerReset();
@@ -507,6 +559,11 @@ void BLEsetup(void) {
   BLE_syncDataChar.setProperties(CHR_PROPS_NOTIFY);
   BLE_syncDataChar.setFixedLen(sizeof(LogEntry));
   BLE_syncDataChar.begin();
+
+  // sync Date and Time
+  BLE_syncTimeChar.setProperties(CHR_PROPS_WRITE);
+  BLE_syncTimeChar.setWriteCallback(BLE_syncTimeCharCallback);
+  BLE_syncTimeChar.begin();
 }
 
 void BLEstartAdv(void) {
@@ -639,4 +696,63 @@ void connect_callback(uint16_t conn_handle) {
 
 void disconnect_callback(uint16_t conn_handle, uint8_t reason) {
   Serial.printf(">>> BLE Disconnected, reason = 0x%02X\n", reason);
+}
+
+void BLE_syncTimeCharCallback(uint16_t conn_hdl, BLECharacteristic* chr, uint8_t* data, uint16_t len) {
+  Serial.println(">>> BLE Time sync");
+
+  if (len == 6)
+  {
+    uint16_t year = 2000 + data[0];
+    uint8_t month = data[1];
+    uint8_t day   = data[2];
+    uint8_t hr    = data[3];
+    uint8_t min   = data[4];
+    uint8_t sec   = data[5];
+
+    // Adjust the RTC to the phone's time
+    rtc.adjust(DateTime(year, month, day, hr, min, sec));
+    Serial.println("RTC Synced!");
+
+    DateTime now = rtc.now();
+    char buf[50];
+    sprintf(buf, "%04d-%02d-%02d %02d:%02d:%02d \n", 
+            now.year(), now.month(), now.day(), 
+            now.hour(), now.minute(), now.second() );
+    Serial.println(buf);
+    //getTimeNow();
+    //printTimeNow();
+  }
+}
+
+void getTimeNow() {
+  //DateTime now = rtc.now();
+  TimeNow = rtc.now();
+
+  /*char buf[50];
+  sprintf(buf, "%04d-%02d-%02d %02d:%02d:%02d \n", 
+          TimeNow.year(), TimeNow.month(), TimeNow.day(), 
+          TimeNow.hour(), TimeNow.minute(), TimeNow.second() );
+  Serial.println(buf);*/
+}
+
+void printTimeNow() {
+  //DateTime TimeNow = rtc.now();
+
+  char buf[50];
+  sprintf(buf, "%04d-%02d-%02d %02d:%02d:%02d \n", 
+          TimeNow.year(), TimeNow.month(), TimeNow.day(), 
+          TimeNow.hour(), TimeNow.minute(), TimeNow.second() );
+  Serial.println(buf);
+}
+
+// Function to read internal nRF52 temperature
+float getTempNRF() {
+    int32_t temp;
+    // The internal sensor returns temperature in 0.25°C increments
+    // sd_temp_get is used when Bluetooth is active
+    if (sd_temp_get(&temp) == NRF_SUCCESS) {
+        return ((float)(temp / 4.0) - 4.5f); 
+    }
+    return -99.0; // Error
 }
