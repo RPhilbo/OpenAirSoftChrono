@@ -48,8 +48,8 @@ void TofSensorsEnableAll();
  * ============================================================ */
 void setup() {
   Serial.begin(115200);
-  while(!Serial);
-  delay(500);
+  //while(!Serial);
+  delay(1000);
   Serial.println("\nSetup Start");
 
   // Setup LED pins as OUTPUT and OFF
