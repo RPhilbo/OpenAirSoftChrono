@@ -35,7 +35,7 @@ struct __attribute__((packed)) LogEntry {
   uint8_t  weight;              // 1 byte
   int8_t   temperature;         // 1 byte
   uint8_t  battery;             // 1 byte
-  uint16_t energy;              // 2 bytes
+  uint16_t energy;              // 2 bytes    Can be reducted later, because calc out of two other log entries.
 };
 
 // Storage
@@ -551,7 +551,7 @@ void BLE_bbWeightCharCallback(uint16_t conn_hdl, BLECharacteristic* chr, uint8_t
   if (len == 0) return;
 
   // Define valid weights
-  static const uint8_t validWeights[] = {12, 20, 25, 28, 30, 32, 36, 40, 43};
+  static const uint8_t validWeights[] = {12, 20, 23, 25, 28, 30, 32, 33, 35, 36, 40, 43, 45, 46};
 
     uint8_t val = data[0];
     bool found = false;
