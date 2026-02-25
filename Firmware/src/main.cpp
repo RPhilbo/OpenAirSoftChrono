@@ -521,6 +521,20 @@ void BLEsetup(void) {
   sprintf(bleName, "OpenAirsoftChrono-#%02X", hashedUID);
   Bluefruit.setName(bleName);
 
+  // 1. Set the PIN (Must be a 6-digit string)
+  // If setPIN isn't recognized, check your Bluefruit version (Update via PlatformIO)
+  Bluefruit.Security.setPIN("420815");
+  Bluefruit.Security.setMITM(1);
+
+  // 2. Configure IO Capabilities 
+  // DISPLAY_ONLY tells the phone "I will show you a PIN, you type it in"
+  Bluefruit.Security.setIOCaps(true, false, false);
+  
+  // 3. Enable Bonding (Saves the pairing so you don't type the PIN every time)
+  //Bluefruit.Security.setPairingEnabled(true);
+
+
+
   // Setup Service & Characteristic
   BLE_oacService.begin();
 
@@ -531,7 +545,7 @@ void BLEsetup(void) {
   // Setup the Characteristic for WRITING
   // CHR_PROPS_WRITE allows the phone to send data to the nRF52
   BLE_fakeChar.setProperties(CHR_PROPS_READ | CHR_PROPS_NOTIFY);
-  BLE_fakeChar.setPermission(SECMODE_OPEN, SECMODE_NO_ACCESS); // Open read/write
+  BLE_fakeChar.setPermission(SECMODE_ENC_WITH_MITM, SECMODE_ENC_WITH_MITM);
   BLE_fakeChar.setFixedLen(4);
   BLE_fakeChar.setPresentationFormatDescriptor(BLE_GATT_CPF_FORMAT_UINT32,
                                             0x0,    // exponent: 0 (Value * 10^0)
@@ -542,26 +556,31 @@ void BLEsetup(void) {
 
   // Live Data: For real-time updates
   BLE_liveDataChar.setProperties(CHR_PROPS_NOTIFY);
+  BLE_liveDataChar.setPermission(SECMODE_ENC_WITH_MITM, SECMODE_ENC_WITH_MITM);
   BLE_liveDataChar.setFixedLen(sizeof(LogEntry));
   BLE_liveDataChar.begin();
 
   // Command Char: Phone writes here to start Sync
   BLE_commandChar.setProperties(CHR_PROPS_WRITE);
+  BLE_commandChar.setPermission(SECMODE_ENC_WITH_MITM, SECMODE_ENC_WITH_MITM);
   BLE_commandChar.setWriteCallback(BLE_commandCharCallback);
   BLE_commandChar.begin();
 
   // BB Weight Char: Phone writes here to change the bbWeight
   BLE_bbWeightChar.setProperties(CHR_PROPS_WRITE);
+  BLE_bbWeightChar.setPermission(SECMODE_ENC_WITH_MITM, SECMODE_ENC_WITH_MITM);
   BLE_bbWeightChar.setWriteCallback(BLE_bbWeightCharCallback);
   BLE_bbWeightChar.begin();
 
   // sync Data: To read the the RAM buffer to smartphone
   BLE_syncDataChar.setProperties(CHR_PROPS_NOTIFY);
+  BLE_syncDataChar.setPermission(SECMODE_ENC_WITH_MITM, SECMODE_ENC_WITH_MITM);
   BLE_syncDataChar.setFixedLen(sizeof(LogEntry));
   BLE_syncDataChar.begin();
 
   // sync Date and Time
   BLE_syncTimeChar.setProperties(CHR_PROPS_WRITE);
+  BLE_syncTimeChar.setPermission(SECMODE_ENC_WITH_MITM, SECMODE_ENC_WITH_MITM);
   BLE_syncTimeChar.setWriteCallback(BLE_syncTimeCharCallback);
   BLE_syncTimeChar.begin();
 }
