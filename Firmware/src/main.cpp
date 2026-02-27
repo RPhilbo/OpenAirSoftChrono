@@ -5,6 +5,7 @@
 #include <RTClib.h>
 
 #include "battery.h"
+#include "bluetooth.h"
 #include "config.h"
 #include "timer_control.h"
 
@@ -66,7 +67,7 @@ uint32_t BLEliveSyncCounter = 0;
 /* ============================================================
  * ======================= BLE ================================
  * ============================================================ */
-// Defining Bluetooth low energy device name and characteristics UUIDs
+/*// Defining Bluetooth low energy device name and characteristics UUIDs
 #define BLE_NAME "OpenAirsoftChrono "
 //const char BLEname = 'OAC Hello 2';
 BLEService        BLE_oacService    = BLEService("38473649-f72a-43bf-a6cd-31e0b2f7207d");
@@ -82,7 +83,7 @@ BLECharacteristic BLE_syncDataChar  = BLECharacteristic("ee39cb31-12f2-4666-b4b9
 BLECharacteristic BLE_DeviceStatus  = BLECharacteristic("56606f53-c354-4e08-ad4e-2b74bf1bf0d0"); // Battery, temperature, IMU
 
 // Debug purpose, will be deleted later
-BLECharacteristic BLE_fakeChar      = BLECharacteristic("4249");
+BLECharacteristic BLE_fakeChar      = BLECharacteristic("4249");*/
 
 /* ============================================================
  * ======================= Pins ===============================
@@ -148,7 +149,7 @@ void TofSensorsEnableAll();
 void TimerCheckAndEvaluate();
 
 void BLEsetup();
-void BLEstartAdv(void);
+//void BLEstartAdv(void);
 void BLE_commandCharCallback(uint16_t conn_hdl, BLECharacteristic* chr, uint8_t* data, uint16_t len);
 void BLE_bbWeightCharCallback(uint16_t conn_hdl, BLECharacteristic* chr, uint8_t* data, uint16_t len);
 void BLE_syncTimeCharCallback(uint16_t conn_hdl, BLECharacteristic* chr, uint8_t* data, uint16_t len);
@@ -156,8 +157,8 @@ void BLEperformFullSync();
 void BLEperformPartialSync();
 
 void CheckxTaskWatermark();
-void connect_callback(uint16_t conn_handle);
-void disconnect_callback(uint16_t conn_handle, uint8_t reason);
+//void BLE_connect_callback(uint16_t conn_handle);
+//void BLE_disconnect_callback(uint16_t conn_handle, uint8_t reason);
 
 void getTimeNow();
 void printTimeNow();
@@ -560,8 +561,8 @@ void BLEsetup(void) {
   BLE_oacService.begin();
 
   // Set callbacks for every BLE connect and disconnect
-  Bluefruit.Periph.setConnectCallback(connect_callback);
-  Bluefruit.Periph.setDisconnectCallback(disconnect_callback);
+  Bluefruit.Periph.setConnectCallback(BLE_connect_callback);
+  Bluefruit.Periph.setDisconnectCallback(BLE_disconnect_callback);
 
   // Setup the Characteristic for WRITING
   // CHR_PROPS_WRITE allows the phone to send data to the nRF52
@@ -612,13 +613,13 @@ void BLEsetup(void) {
   BLE_DeviceStatus.begin();
 }
 
-void BLEstartAdv(void) {
+/*void BLEstartAdv(void) {
   Bluefruit.Advertising.addFlags(BLE_GAP_ADV_FLAGS_LE_ONLY_GENERAL_DISC_MODE);
   Bluefruit.Advertising.addService(BLE_oacService);
   Bluefruit.ScanResponse.addName();
   Bluefruit.Advertising.restartOnDisconnect(true);
   Bluefruit.Advertising.start(0);
-}
+}*/
 
 
 // Callback when phone writes to the Command Characteristic
@@ -736,7 +737,7 @@ void BLEperformPartialSync() {
 }
 
 
-void connect_callback(uint16_t conn_handle) {
+/*void BLE_connect_callback(uint16_t conn_handle) {
   // This code runs ONCE per new connection
   Serial.println(">>> BLE Client Connected!");
   
@@ -750,9 +751,9 @@ void connect_callback(uint16_t conn_handle) {
   Serial.printf(">>> BLE Connected to: %s\n", peer_name);
 }
 
-void disconnect_callback(uint16_t conn_handle, uint8_t reason) {
+void BLE_disconnect_callback(uint16_t conn_handle, uint8_t reason) {
   Serial.printf(">>> BLE Disconnected, reason = 0x%02X\n", reason);
-}
+}*/
 
 void BLE_syncTimeCharCallback(uint16_t conn_hdl, BLECharacteristic* chr, uint8_t* data, uint16_t len) {
   Serial.println(">>> BLE Time sync");
