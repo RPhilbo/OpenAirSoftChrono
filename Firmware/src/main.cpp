@@ -677,9 +677,19 @@ void BLEperformFullSync() {
 // sync the last n log entries
 void BLEperformPartialSync() {
   Serial.println(">>> BLE: starting partial sync...");
-  for (uint32_t i = BBCounter-20; i < BBCounter; i++) {    
+
+  // Ensure we don't go below index 0
+  uint32_t startIdx = (BBCounter < 20) ? 0 : (BBCounter - 20);
+
+  for (uint32_t i = startIdx; i < BBCounter; i++) {    
     // Check if entry exists (if buffer isn't full yet)
     if (dataLog[i].bbCounterAbsolute == 0) continue;
+    /*
+    
+    while (!BLE_syncDataChar.notify(&dataLog[0], sizeof(LogEntry))) {
+      delay(2); // Wait for BLE stack to clear
+    }
+    */
 
     while (!BLE_syncDataChar.notify(&dataLog[i], sizeof(LogEntry))) {
       delay(2); // Wait for BLE stack to clear
