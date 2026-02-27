@@ -67,7 +67,7 @@ uint32_t BLEliveSyncCounter = 0;
 /* ============================================================
  * ======================= BLE ================================
  * ============================================================ */
-// Defining Bluetooth low energy device name and characteristics UUIDs
+/*// Defining Bluetooth low energy device name and characteristics UUIDs
 #define BLE_NAME "OpenAirsoftChrono "
 //const char BLEname = 'OAC Hello 2';
 BLEService        BLE_oacService    = BLEService("38473649-f72a-43bf-a6cd-31e0b2f7207d");
@@ -83,7 +83,7 @@ BLECharacteristic BLE_syncDataChar  = BLECharacteristic("ee39cb31-12f2-4666-b4b9
 BLECharacteristic BLE_DeviceStatus  = BLECharacteristic("56606f53-c354-4e08-ad4e-2b74bf1bf0d0"); // Battery, temperature, IMU
 
 // Debug purpose, will be deleted later
-BLECharacteristic BLE_fakeChar      = BLECharacteristic("4249");
+BLECharacteristic BLE_fakeChar      = BLECharacteristic("4249");*/
 
 /* ============================================================
  * ======================= Pins ===============================
@@ -157,8 +157,8 @@ void BLEperformFullSync();
 void BLEperformPartialSync();
 
 void CheckxTaskWatermark();
-void connect_callback(uint16_t conn_handle);
-void disconnect_callback(uint16_t conn_handle, uint8_t reason);
+void BLE_connect_callback(uint16_t conn_handle);
+void BLE_disconnect_callback(uint16_t conn_handle, uint8_t reason);
 
 void getTimeNow();
 void printTimeNow();
@@ -561,8 +561,8 @@ void BLEsetup(void) {
   BLE_oacService.begin();
 
   // Set callbacks for every BLE connect and disconnect
-  Bluefruit.Periph.setConnectCallback(connect_callback);
-  Bluefruit.Periph.setDisconnectCallback(disconnect_callback);
+  Bluefruit.Periph.setConnectCallback(BLE_connect_callback);
+  Bluefruit.Periph.setDisconnectCallback(BLE_disconnect_callback);
 
   // Setup the Characteristic for WRITING
   // CHR_PROPS_WRITE allows the phone to send data to the nRF52
@@ -737,7 +737,7 @@ void BLEperformPartialSync() {
 }
 
 
-void connect_callback(uint16_t conn_handle) {
+void BLE_connect_callback(uint16_t conn_handle) {
   // This code runs ONCE per new connection
   Serial.println(">>> BLE Client Connected!");
   
@@ -751,7 +751,7 @@ void connect_callback(uint16_t conn_handle) {
   Serial.printf(">>> BLE Connected to: %s\n", peer_name);
 }
 
-void disconnect_callback(uint16_t conn_handle, uint8_t reason) {
+void BLE_disconnect_callback(uint16_t conn_handle, uint8_t reason) {
   Serial.printf(">>> BLE Disconnected, reason = 0x%02X\n", reason);
 }
 
