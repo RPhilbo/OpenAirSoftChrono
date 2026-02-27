@@ -19,7 +19,7 @@
  * ======================= GLOBALS ============================
  * ============================================================ */
 
-DateTime TimeNow;
+DateTime timeNow;
 float tempMCU;    // NRF52 internal Die temp. Expect an offset of 2-5K
 
 TargetIdentifier myTargetIdentifier;
@@ -59,8 +59,8 @@ DeviceStatusStruct DeviceStatus;
 // Storage
 LogEntry dataLog[MAX_LOG_ENTRIES];
 int head = 0;           // Next write position
-bool BLEaskForFullSync    = false; // Flag to manage bulk transfer
-bool BLEaskForPartialSync = false; // Flag to manage partial transfer
+bool bleAskForFullSync    = false; // Flag to manage bulk transfer
+bool bleAskForPartialSync = false; // Flag to manage partial transfer
 
 uint32_t BLEliveSyncCounter = 0;
 
@@ -153,7 +153,7 @@ void BLEsetup();
 void BLE_commandCharCallback(uint16_t conn_hdl, BLECharacteristic* chr, uint8_t* data, uint16_t len);
 void BLE_bbWeightCharCallback(uint16_t conn_hdl, BLECharacteristic* chr, uint8_t* data, uint16_t len);
 void BLE_syncTimeCharCallback(uint16_t conn_hdl, BLECharacteristic* chr, uint8_t* data, uint16_t len);
-void BLEperformFullSync();
+void BLE_performFullSync();
 void BLEperformPartialSync();
 
 void CheckxTaskWatermark();
@@ -410,7 +410,7 @@ void BLEsyncFakeTask(void *pvParameters) {
                 currentRead.battery);*/
 
   // Real-time BLE Update (Notify if phone is listening)
-  if (Bluefruit.connected() && !BLEaskForFullSync) {
+  if (Bluefruit.connected() && !bleAskForFullSync) {
       if (BBCounter > BLEliveSyncCounter) {
         BLE_liveDataChar.notify(&dataLog[BLEliveSyncCounter], sizeof(LogEntry));
         BLEliveSyncCounter++;
@@ -419,12 +419,12 @@ void BLEsyncFakeTask(void *pvParameters) {
   }
 
   // Handle Bulk Sync (If triggered)
-  if (BLEaskForFullSync) {
-    BLEperformFullSync();
+  if (bleAskForFullSync) {
+    BLE_performFullSync();
   }
 
   // Handle Partial Sync (If triggered)
-  if (BLEaskForPartialSync) {
+  if (bleAskForPartialSync) {
     BLEperformPartialSync();
   }
 
@@ -481,12 +481,12 @@ void TimerCheckAndEvaluate() {
     //currentRead.battery           = (uint8_t)random(42, 100);
     currentRead.battery           = (uint8_t)BatteryVoltage;
     currentRead.energy            = (uint16_t)roundf(1000 * energy12);
-    currentRead.year              = (uint8_t)(TimeNow.year() - 2000);
-    currentRead.month             = TimeNow.month();
-    currentRead.day               = TimeNow.day();
-    currentRead.hr                = TimeNow.hour();
-    currentRead.min               = TimeNow.minute();
-    currentRead.sec               = TimeNow.second();
+    currentRead.year              = (uint8_t)(timeNow.year() - 2000);
+    currentRead.month             = timeNow.month();
+    currentRead.day               = timeNow.day();
+    currentRead.hr                = timeNow.hour();
+    currentRead.min               = timeNow.minute();
+    currentRead.sec               = timeNow.second();
     
     // write into RAM buffer
     dataLog[head] = currentRead;
@@ -632,13 +632,13 @@ void BLE_commandCharCallback(uint16_t conn_hdl, BLECharacteristic* chr, uint8_t*
     case 0x42:
       // full sync
       Serial.println(">>> BLE bulk sync requested by phone!");
-      BLEaskForFullSync = true;
+      bleAskForFullSync = true;
       break;
 
     case 0x43:
       // partial sync
       Serial.println(">>> BLE partial sync requested by phone!");
-      BLEaskForPartialSync = true;
+      bleAskForPartialSync = true;
       break;
 
     default:
@@ -674,7 +674,7 @@ void BLE_bbWeightCharCallback(uint16_t conn_hdl, BLECharacteristic* chr, uint8_t
 }
 
 
-void BLEperformFullSync() {
+void BLE_performFullSync() {
   Serial.println(">>> BLE starting bulk sync...");
   for (int i = 0; i < MAX_LOG_ENTRIES; i++) {
     int index = (head + i) % MAX_LOG_ENTRIES;
@@ -696,7 +696,7 @@ void BLEperformFullSync() {
                   dataLog[index].energy);
   }
   Serial.println(">>> BLE bulk sync complete.");
-  BLEaskForFullSync = false;
+  bleAskForFullSync = false;
 }
 
 
@@ -731,7 +731,7 @@ void BLEperformPartialSync() {
                   dataLog[i].energy);
   }
   Serial.println(">>> BLE partial sync complete.");
-  BLEaskForPartialSync = false;
+  bleAskForPartialSync = false;
 }
 
 
@@ -775,29 +775,19 @@ void BLE_syncTimeCharCallback(uint16_t conn_hdl, BLECharacteristic* chr, uint8_t
             now.year(), now.month(), now.day(), 
             now.hour(), now.minute(), now.second() );
     Serial.println(buf);
-    //getTimeNow();
-    //printTimeNow();
   }
 }
 
 void getTimeNow() {
-  //DateTime now = rtc.now();
-  TimeNow = rtc.now();
-
-  /*char buf[50];
-  sprintf(buf, "%04d-%02d-%02d %02d:%02d:%02d \n", 
-          TimeNow.year(), TimeNow.month(), TimeNow.day(), 
-          TimeNow.hour(), TimeNow.minute(), TimeNow.second() );
-  Serial.println(buf);*/
+  timeNow = rtc.now();
 }
 
 void printTimeNow() {
-  //DateTime TimeNow = rtc.now();
 
   char buf[50];
   sprintf(buf, "%04d-%02d-%02d %02d:%02d:%02d \n", 
-          TimeNow.year(), TimeNow.month(), TimeNow.day(), 
-          TimeNow.hour(), TimeNow.minute(), TimeNow.second() );
+          timeNow.year(), timeNow.month(), timeNow.day(), 
+          timeNow.hour(), timeNow.minute(), timeNow.second() );
   Serial.println(buf);
 }
 
