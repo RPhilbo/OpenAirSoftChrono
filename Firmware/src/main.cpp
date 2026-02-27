@@ -47,6 +47,14 @@ struct __attribute__((packed)) LogEntry {
   uint8_t sec;
 };
 
+struct __attribute__((packed)) SystemStatusStruct {
+  int8_t   temperature;   // 1 byte
+  uint8_t  battery;       // 1 byte
+  uint8_t  IMU_state;     // 1 byte
+};
+
+SystemStatusStruct SystemStatus;
+
 // Storage
 LogEntry dataLog[MAX_LOG_ENTRIES];
 int head = 0;           // Next write position
@@ -63,15 +71,17 @@ uint32_t BLEliveSyncCounter = 0;
 //const char BLEname = 'OAC Hello 2';
 BLEService        BLE_oacService    = BLEService("19b10000-e8f2-537e-4f6c-d104768a1214");
 
-// BLE characters with downlink possibility (getting data from smartphone)
+// BLE characters bidirectional (mainly to write smartphone --> NRF)
 BLECharacteristic BLE_commandChar   = BLECharacteristic("4242"); // Write 0x01 to sync
 BLECharacteristic BLE_bbWeightChar  = BLECharacteristic("4243"); // bbWeight to be changed via smartphone
-
-// BLE characters upnlink only (smartphone is limited to read)
-BLECharacteristic BLE_liveDataChar  = BLECharacteristic("4244"); // live update per shot
-BLECharacteristic BLE_syncDataChar  = BLECharacteristic("4245"); // sync updates per smartphone request
 BLECharacteristic BLE_syncTimeChar  = BLECharacteristic("4246"); // sync date and time
 
+// BLE characters uplink only (NRF --> smartphone)
+BLECharacteristic BLE_liveDataChar  = BLECharacteristic("4244"); // live update per shot
+BLECharacteristic BLE_syncDataChar  = BLECharacteristic("4245"); // sync updates per smartphone request
+BLECharacteristic BLE_DeviceStatus  = BLECharacteristic("4246"); // Battery, temperature, IMU
+
+// Debug purpose, will be deleted later
 BLECharacteristic BLE_fakeChar      = BLECharacteristic("4249");
 
 /* ============================================================
@@ -302,9 +312,17 @@ void HeartbeatTask(void *pvParameters) {
       printTimeNow();
 
       FakeCounter = 0;
+
+      SystemStatus.battery      = (uint8_t)BatteryVoltage;
+      SystemStatus.temperature  = (int8_t)roundf(tempMCU);
+
+      while (!BLE_DeviceStatus.notify(&SystemStatus, sizeof(SystemStatus))) {
+      delay(2); // Wait for BLE stack to clear
+    }
     }
     
-    //Serial.printf("Heartbeat Task - Battery Voltage: %.2f V \n", BatteryVoltageFloat);
+    
+    
     
 
     // Update the characteristic and NOTIFY the connected app
@@ -583,6 +601,12 @@ void BLEsetup(void) {
   BLE_syncTimeChar.setPermission(SECMODE_ENC_WITH_MITM, SECMODE_ENC_WITH_MITM);
   BLE_syncTimeChar.setWriteCallback(BLE_syncTimeCharCallback);
   BLE_syncTimeChar.begin();
+
+  // Device status: Battery, temperature, tbd
+  BLE_DeviceStatus.setProperties(CHR_PROPS_NOTIFY);
+  BLE_DeviceStatus.setPermission(SECMODE_ENC_WITH_MITM, SECMODE_ENC_WITH_MITM);
+  BLE_DeviceStatus.setFixedLen(sizeof(SystemStatus));
+  BLE_DeviceStatus.begin();
 }
 
 void BLEstartAdv(void) {
@@ -685,7 +709,7 @@ void BLEperformPartialSync() {
     // Check if entry exists (if buffer isn't full yet)
     if (dataLog[i].bbCounterAbsolute == 0) continue;
     /*
-    
+
     while (!BLE_syncDataChar.notify(&dataLog[0], sizeof(LogEntry))) {
       delay(2); // Wait for BLE stack to clear
     }
