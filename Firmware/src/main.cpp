@@ -317,9 +317,11 @@ void HeartbeatTask(void *pvParameters) {
       DeviceStatus.temperature  = (int8_t)roundf(tempMCU);
       DeviceStatus.IMU_state    = (int8_t)0x42;
 
-      while (!BLE_DeviceStatus.notify(&DeviceStatus, sizeof(DeviceStatus))) {
-      delay(2); // Wait for BLE stack to clear
-    }
+      /*while (!BLE_DeviceStatus.notify(&DeviceStatus, sizeof(DeviceStatus))) {
+      delay(2); // Wait for BLE stack to clear*/
+      if (Bluefruit.connected()) {
+          BLE_DeviceStatus.notify(&DeviceStatus, sizeof(DeviceStatus));
+      }
     }
     
     
