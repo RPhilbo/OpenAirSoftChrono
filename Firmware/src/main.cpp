@@ -17,9 +17,9 @@
  * ======================= GLOBALS ============================
  * ============================================================ */
 
-uint32_t part     = NRF_FICR->INFO.PART;
-uint32_t variant  = NRF_FICR->INFO.VARIANT;
-uint64_t UID      = ((uint64_t)NRF_FICR->DEVICEID[1] << 32) | NRF_FICR->DEVICEID[0];
+uint32_t part;
+uint32_t variant;
+uint64_t UID;
 DateTime TimeNow;
 float tempMCU;    // NRF52 internal Die temp. Expect an offset of 2-5K
 
@@ -47,13 +47,13 @@ struct __attribute__((packed)) LogEntry {
   uint8_t sec;
 };
 
-struct __attribute__((packed)) SystemStatusStruct {
+struct __attribute__((packed)) DeviceStatusStruct {
   int8_t   temperature;   // 1 byte
   uint8_t  battery;       // 1 byte
   uint8_t  IMU_state;     // 1 byte
 };
 
-SystemStatusStruct SystemStatus;
+DeviceStatusStruct DeviceStatus;
 
 // Storage
 LogEntry dataLog[MAX_LOG_ENTRIES];
@@ -79,7 +79,7 @@ BLECharacteristic BLE_syncTimeChar  = BLECharacteristic("4246"); // sync date an
 // BLE characters uplink only (NRF --> smartphone)
 BLECharacteristic BLE_liveDataChar  = BLECharacteristic("4244"); // live update per shot
 BLECharacteristic BLE_syncDataChar  = BLECharacteristic("4245"); // sync updates per smartphone request
-BLECharacteristic BLE_DeviceStatus  = BLECharacteristic("4246"); // Battery, temperature, IMU
+BLECharacteristic BLE_DeviceStatus  = BLECharacteristic("4247"); // Battery, temperature, IMU
 
 // Debug purpose, will be deleted later
 BLECharacteristic BLE_fakeChar      = BLECharacteristic("4249");
@@ -181,7 +181,7 @@ void setup() {
   // Read the MCU part, variant and unique ID
   part = NRF_FICR->INFO.PART;
   variant = NRF_FICR->INFO.VARIANT;
-  UID = (NRF_FICR->DEVICEID[1] << 32) | NRF_FICR->DEVICEID[0];
+  UID = ((uint64_t)NRF_FICR->DEVICEID[1] << 32) | NRF_FICR->DEVICEID[0];
   Serial.printf("[HW] Part: %lx | Variant: %lx | UID: %lx \n", part, variant, UID);
 
   // Initialize RTC with a default time (Jan 1 2000)
@@ -313,10 +313,11 @@ void HeartbeatTask(void *pvParameters) {
 
       FakeCounter = 0;
 
-      SystemStatus.battery      = (uint8_t)BatteryVoltage;
-      SystemStatus.temperature  = (int8_t)roundf(tempMCU);
+      DeviceStatus.battery      = (uint8_t)BatteryVoltage;
+      DeviceStatus.temperature  = (int8_t)roundf(tempMCU);
+      DeviceStatus.IMU_state    = (int8_t)0x42;
 
-      while (!BLE_DeviceStatus.notify(&SystemStatus, sizeof(SystemStatus))) {
+      while (!BLE_DeviceStatus.notify(&DeviceStatus, sizeof(DeviceStatus))) {
       delay(2); // Wait for BLE stack to clear
     }
     }
@@ -605,7 +606,7 @@ void BLEsetup(void) {
   // Device status: Battery, temperature, tbd
   BLE_DeviceStatus.setProperties(CHR_PROPS_NOTIFY);
   BLE_DeviceStatus.setPermission(SECMODE_ENC_WITH_MITM, SECMODE_ENC_WITH_MITM);
-  BLE_DeviceStatus.setFixedLen(sizeof(SystemStatus));
+  BLE_DeviceStatus.setFixedLen(sizeof(DeviceStatus));
   BLE_DeviceStatus.begin();
 }
 
