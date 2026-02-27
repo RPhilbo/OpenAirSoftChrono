@@ -5,6 +5,7 @@
 #include <RTClib.h>
 
 #include "battery.h"
+#include "bluetooth.h"
 #include "config.h"
 #include "timer_control.h"
 
