@@ -18,11 +18,10 @@
  * ======================= GLOBALS ============================
  * ============================================================ */
 
-uint32_t part;
-uint32_t variant;
-uint64_t UID;
 DateTime TimeNow;
 float tempMCU;    // NRF52 internal Die temp. Expect an offset of 2-5K
+
+TargetIdentifier myTargetIdentifier;
 
 /* ============================================================
  * ======================= Logging ============================
@@ -179,11 +178,9 @@ void setup() {
   delay(500);
   Serial.println("\nSetup Start");
 
-  // Read the MCU part, variant and unique ID
-  part = NRF_FICR->INFO.PART;
-  variant = NRF_FICR->INFO.VARIANT;
-  UID = ((uint64_t)NRF_FICR->DEVICEID[1] << 32) | NRF_FICR->DEVICEID[0];
-  Serial.printf("[HW] Part: %lx | Variant: %lx | UID: %lx \n", part, variant, UID);
+  // Get the target complete identifier
+  myTargetIdentifier = getTargetIdentifier();
+  Serial.printf("[HW] Part: %lx | Variant: %lx | UID: %lx \n", myTargetIdentifier.part, myTargetIdentifier.variant, myTargetIdentifier.UID);
 
   // Initialize RTC with a default time (Jan 1 2000)
     rtc.begin(DateTime(2000, 1, 1, 0, 0, 0));
@@ -536,7 +533,7 @@ void BLEsetup(void) {
   // XOR all 8 bytes of the UID together into one byte
   uint8_t hashedUID = 0;
   for (int i = 0; i < 64; i += 8) {
-      hashedUID ^= (uint8_t)(UID >> i);
+      hashedUID ^= (uint8_t)(myTargetIdentifier.UID >> i);
   }
 
   char bleName[24];
