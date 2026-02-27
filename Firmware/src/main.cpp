@@ -149,7 +149,7 @@ void TofSensorsEnableAll();
 void TimerCheckAndEvaluate();
 
 void BLEsetup();
-void BLEstartAdv(void);
+//void BLEstartAdv(void);
 void BLE_commandCharCallback(uint16_t conn_hdl, BLECharacteristic* chr, uint8_t* data, uint16_t len);
 void BLE_bbWeightCharCallback(uint16_t conn_hdl, BLECharacteristic* chr, uint8_t* data, uint16_t len);
 void BLE_syncTimeCharCallback(uint16_t conn_hdl, BLECharacteristic* chr, uint8_t* data, uint16_t len);
@@ -157,8 +157,8 @@ void BLEperformFullSync();
 void BLEperformPartialSync();
 
 void CheckxTaskWatermark();
-void BLE_connect_callback(uint16_t conn_handle);
-void BLE_disconnect_callback(uint16_t conn_handle, uint8_t reason);
+//void BLE_connect_callback(uint16_t conn_handle);
+//void BLE_disconnect_callback(uint16_t conn_handle, uint8_t reason);
 
 void getTimeNow();
 void printTimeNow();
@@ -613,13 +613,13 @@ void BLEsetup(void) {
   BLE_DeviceStatus.begin();
 }
 
-void BLEstartAdv(void) {
+/*void BLEstartAdv(void) {
   Bluefruit.Advertising.addFlags(BLE_GAP_ADV_FLAGS_LE_ONLY_GENERAL_DISC_MODE);
   Bluefruit.Advertising.addService(BLE_oacService);
   Bluefruit.ScanResponse.addName();
   Bluefruit.Advertising.restartOnDisconnect(true);
   Bluefruit.Advertising.start(0);
-}
+}*/
 
 
 // Callback when phone writes to the Command Characteristic
@@ -737,7 +737,7 @@ void BLEperformPartialSync() {
 }
 
 
-void BLE_connect_callback(uint16_t conn_handle) {
+/*void BLE_connect_callback(uint16_t conn_handle) {
   // This code runs ONCE per new connection
   Serial.println(">>> BLE Client Connected!");
   
@@ -753,7 +753,7 @@ void BLE_connect_callback(uint16_t conn_handle) {
 
 void BLE_disconnect_callback(uint16_t conn_handle, uint8_t reason) {
   Serial.printf(">>> BLE Disconnected, reason = 0x%02X\n", reason);
-}
+}*/
 
 void BLE_syncTimeCharCallback(uint16_t conn_hdl, BLECharacteristic* chr, uint8_t* data, uint16_t len) {
   Serial.println(">>> BLE Time sync");

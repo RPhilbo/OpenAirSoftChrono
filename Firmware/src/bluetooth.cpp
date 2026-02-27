@@ -17,3 +17,31 @@ BLECharacteristic BLE_DeviceStatus  = BLECharacteristic("56606f53-c354-4e08-ad4e
 
 // Debug purpose, will be deleted later
 BLECharacteristic BLE_fakeChar      = BLECharacteristic("4249");
+
+
+
+void BLEstartAdv(void) {
+  Bluefruit.Advertising.addFlags(BLE_GAP_ADV_FLAGS_LE_ONLY_GENERAL_DISC_MODE);
+  Bluefruit.Advertising.addService(BLE_oacService);
+  Bluefruit.ScanResponse.addName();
+  Bluefruit.Advertising.restartOnDisconnect(true);
+  Bluefruit.Advertising.start(0);
+}
+
+void BLE_connect_callback(uint16_t conn_handle) {
+  // This code runs ONCE per new connection
+  Serial.println(">>> BLE Client Connected!");
+  
+  // syncing the actual value of BBCounter at the moment of connection
+  BLEliveSyncCounter = BBCounter;
+  
+  // Optional: You can get info about the phone
+  BLEConnection* conn = Bluefruit.Connection(conn_handle);
+  char peer_name[32] = { 0 };
+  conn->getPeerName(peer_name, sizeof(peer_name));
+  Serial.printf(">>> BLE Connected to: %s\n", peer_name);
+}
+
+void BLE_disconnect_callback(uint16_t conn_handle, uint8_t reason) {
+  Serial.printf(">>> BLE Disconnected, reason = 0x%02X\n", reason);
+}

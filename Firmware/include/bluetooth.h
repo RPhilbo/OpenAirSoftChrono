@@ -4,6 +4,11 @@
 #include <Arduino.h>
 #include <bluefruit.h>
 
+
+/* ============================================================
+ * ======================= DECLARATIONS =======================
+ * ============================================================ */
+
 //const char BLEname = 'OAC Hello 2';
 extern BLEService BLE_oacService;
 
@@ -19,5 +24,18 @@ extern BLECharacteristic BLE_DeviceStatus;  // Battery, temperature, IMU
 
 // Debug purpose, will be deleted later
 extern BLECharacteristic BLE_fakeChar;
+
+
+extern uint32_t BLEliveSyncCounter;
+extern uint32_t BBCounter;
+
+
+/* ============================================================
+ * ======================= PROTOTYPES =========================
+ * ============================================================ */
+
+void BLEstartAdv(void);
+void BLE_connect_callback(uint16_t conn_handle);
+void BLE_disconnect_callback(uint16_t conn_handle, uint8_t reason);
 
 #endif
