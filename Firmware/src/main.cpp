@@ -19,7 +19,7 @@
 
 uint32_t part     = NRF_FICR->INFO.PART;
 uint32_t variant  = NRF_FICR->INFO.VARIANT;
-uint64_t UID      = (NRF_FICR->DEVICEID[1] << 32) | NRF_FICR->DEVICEID[0];
+uint64_t UID      = ((uint64_t)NRF_FICR->DEVICEID[1] << 32) | NRF_FICR->DEVICEID[0];
 DateTime TimeNow;
 float tempMCU;    // NRF52 internal Die temp. Expect an offset of 2-5K
 
