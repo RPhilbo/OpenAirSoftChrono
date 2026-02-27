@@ -7,6 +7,7 @@
 #include "battery.h"
 #include "bluetooth.h"
 #include "config.h"
+#include "pins.h"
 #include "timer_control.h"
 
 #define LED_OFF HIGH
@@ -91,13 +92,13 @@ BLECharacteristic BLE_fakeChar      = BLECharacteristic("4249");*/
 #define LED_OFF HIGH
 #define LED_ON LOW
 
-#define ToF_Sensor1_Enable D9
+/*#define ToF_Sensor1_Enable D9
 #define ToF_Sensor2_Enable D8
 #define ToF_Sensor3_Enable D19
 
 #define ToF_Sensor1_Output D10
 #define ToF_Sensor2_Output D7
-#define ToF_Sensor3_Output D18
+#define ToF_Sensor3_Output D18*/
 
 
 /* ============================================================
@@ -191,13 +192,13 @@ void setup() {
   pinMode(LED_BLUE, OUTPUT);  digitalWrite(LED_BLUE,  LED_OFF);
 
   // Setup the ToF sensor pins
-  pinMode(ToF_Sensor1_Enable, OUTPUT);   digitalWrite(ToF_Sensor1_Enable, LOW);
-  pinMode(ToF_Sensor2_Enable, OUTPUT);   digitalWrite(ToF_Sensor2_Enable, LOW);
-  pinMode(ToF_Sensor3_Enable, OUTPUT);   digitalWrite(ToF_Sensor3_Enable, LOW);
+  pinMode(TOF_SENSOR1_ENABLE, OUTPUT);   digitalWrite(TOF_SENSOR1_ENABLE, LOW);
+  pinMode(TOF_SENSOR2_ENABLE, OUTPUT);   digitalWrite(TOF_SENSOR2_ENABLE, LOW);
+  pinMode(TOF_SENSOR3_ENABLE, OUTPUT);   digitalWrite(TOF_SENSOR3_ENABLE, LOW);
 
-  pinMode(ToF_Sensor1_Output, INPUT_PULLDOWN);
-  pinMode(ToF_Sensor2_Output, INPUT_PULLDOWN);
-  pinMode(ToF_Sensor3_Output, INPUT_PULLDOWN);
+  pinMode(TOF_SENSOR1_OUTPUT, INPUT_PULLDOWN);
+  pinMode(TOF_SENSOR2_OUTPUT, INPUT_PULLDOWN);
+  pinMode(TOF_SENSOR3_OUTPUT, INPUT_PULLDOWN);
 
 
   // Enabling the ToF sensor pins.
@@ -348,19 +349,19 @@ void TofSensorCheckTask(void *pvParameters) {
   xSemaphoreGive(startTasksSignal);
 
   while (1) {
-    if (digitalRead(ToF_Sensor1_Output)) {
+    if (digitalRead(TOF_SENSOR1_OUTPUT)) {
       digitalWrite(LED_RED, LED_ON);
       Serial.println("Sensor 1 output is high");
     }
     else digitalWrite(LED_RED, LED_OFF);
 
-    if (digitalRead(ToF_Sensor2_Output)) {
+    if (digitalRead(TOF_SENSOR2_OUTPUT)) {
       digitalWrite(LED_GREEN, LED_ON);
       Serial.println("Sensor 2 output is high");
     }
     else digitalWrite(LED_GREEN, LED_OFF);
 
-    if (digitalRead(ToF_Sensor3_Output)) {
+    if (digitalRead(TOF_SENSOR3_OUTPUT)) {
       digitalWrite(LED_BLUE, LED_ON);
       Serial.println("Sensor 3 output is high");
     }
@@ -442,17 +443,17 @@ void BLEsyncFakeTask(void *pvParameters) {
 void TofSensorsEnableAll() {
   Serial.println("\nEnabling the ToF sensor 1 after delay");
   vTaskDelay(pdMS_TO_TICKS(500)); // Non-blocking delay
-  digitalWrite(ToF_Sensor1_Enable, HIGH);
+  digitalWrite(TOF_SENSOR1_ENABLE, HIGH);
   Serial.println("                ToF sensor 1 is enabled");
 
   Serial.println("\nEnabling the ToF sensor 2 after delay");
   vTaskDelay(pdMS_TO_TICKS(500)); // Non-blocking delay
-  digitalWrite(ToF_Sensor2_Enable, HIGH);
+  digitalWrite(TOF_SENSOR2_ENABLE, HIGH);
   Serial.println("                ToF sensor 2 is enabled");
 
   Serial.println("\nEnabling the ToF sensor 3 after delay");
   vTaskDelay(pdMS_TO_TICKS(500)); // Non-blocking delay
-  digitalWrite(ToF_Sensor3_Enable, HIGH);
+  digitalWrite(TOF_SENSOR3_ENABLE, HIGH);
   Serial.println("                ToF sensor 3 is enabled");
 }
 
