@@ -51,6 +51,31 @@ void BLE_disconnect_callback(uint16_t conn_handle, uint8_t reason) {
 }
 
 
+// Callback when phone writes to the Command Characteristic
+void BLE_commandCharCallback(uint16_t conn_hdl, BLECharacteristic* chr, uint8_t* data, uint16_t len) {
+  Serial.printf(">>> BLE new command received: 0x%02X\n", data[0]);
+
+  if (len > 0) {
+      switch(data[0]) {
+    case 0x42:
+      // full sync
+      Serial.println(">>> BLE bulk sync requested by phone!");
+      bleAskForFullSync = true;
+      break;
+
+    case 0x43:
+      // partial sync
+      Serial.println(">>> BLE partial sync requested by phone!");
+      bleAskForPartialSync = true;
+      break;
+
+    default:
+      Serial.println(">>> Faulty code?");
+    }
+  }
+}
+
+
 // Callback when phone writes to the bbWeight Characteristic
 void BLE_bbWeightCharCallback(uint16_t conn_hdl, BLECharacteristic* chr, uint8_t* data, uint16_t len) {
   Serial.printf(">>> BLE new BB Weight received: 0x%02X\n", data[0]);

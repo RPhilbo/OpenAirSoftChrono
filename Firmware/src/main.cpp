@@ -111,7 +111,6 @@ void BLEsyncFakeTask(void *pvParameters);
 void TimerCheckAndEvaluate();
 
 void BLEsetup();
-void BLE_commandCharCallback(uint16_t conn_hdl, BLECharacteristic* chr, uint8_t* data, uint16_t len);
 void BLE_syncTimeCharCallback(uint16_t conn_hdl, BLECharacteristic* chr, uint8_t* data, uint16_t len);
 void BLE_performFullSync();
 void BLEperformPartialSync();
@@ -529,30 +528,6 @@ void BLEsetup(void) {
   BLE_DeviceStatus.begin();
 }
 
-
-// Callback when phone writes to the Command Characteristic
-void BLE_commandCharCallback(uint16_t conn_hdl, BLECharacteristic* chr, uint8_t* data, uint16_t len) {
-  Serial.printf(">>> BLE new command received: 0x%02X\n", data[0]);
-
-  if (len > 0) {
-      switch(data[0]) {
-    case 0x42:
-      // full sync
-      Serial.println(">>> BLE bulk sync requested by phone!");
-      bleAskForFullSync = true;
-      break;
-
-    case 0x43:
-      // partial sync
-      Serial.println(">>> BLE partial sync requested by phone!");
-      bleAskForPartialSync = true;
-      break;
-
-    default:
-      Serial.println(">>> Faulty code?");
-    }
-  }
-}
 
 
 void BLE_performFullSync() {
