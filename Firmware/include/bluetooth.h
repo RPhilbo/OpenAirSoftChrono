@@ -29,6 +29,9 @@ extern BLECharacteristic BLE_fakeChar;
 extern uint32_t BLEliveSyncCounter;
 extern uint32_t BBCounter;
 
+extern uint8_t BBweight;
+extern float BBWeight_kg;
+
 
 /* ============================================================
  * ======================= PROTOTYPES =========================
@@ -37,5 +40,7 @@ extern uint32_t BBCounter;
 void BLEstartAdv(void);
 void BLE_connect_callback(uint16_t conn_handle);
 void BLE_disconnect_callback(uint16_t conn_handle, uint8_t reason);
+
+void BLE_bbWeightCharCallback(uint16_t conn_hdl, BLECharacteristic* chr, uint8_t* data, uint16_t len);
 
 #endif

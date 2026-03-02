@@ -114,7 +114,6 @@ void TimerCheckAndEvaluate();
 
 void BLEsetup();
 void BLE_commandCharCallback(uint16_t conn_hdl, BLECharacteristic* chr, uint8_t* data, uint16_t len);
-void BLE_bbWeightCharCallback(uint16_t conn_hdl, BLECharacteristic* chr, uint8_t* data, uint16_t len);
 void BLE_syncTimeCharCallback(uint16_t conn_hdl, BLECharacteristic* chr, uint8_t* data, uint16_t len);
 void BLE_performFullSync();
 void BLEperformPartialSync();
@@ -585,32 +584,6 @@ void BLE_commandCharCallback(uint16_t conn_hdl, BLECharacteristic* chr, uint8_t*
       Serial.println(">>> Faulty code?");
     }
   }
-}
-
-// Callback when phone writes to the bbWeight Characteristic
-void BLE_bbWeightCharCallback(uint16_t conn_hdl, BLECharacteristic* chr, uint8_t* data, uint16_t len) {
-  Serial.printf(">>> BLE new BB Weight received: 0x%02X\n", data[0]);
-  if (len == 0) return;
-
-  // Define valid weights
-  static const uint8_t validWeights[] = {12, 20, 23, 25, 28, 30, 32, 33, 35, 36, 40, 43, 45, 46};
-
-    uint8_t val = data[0];
-    bool found = false;
-
-    for (uint8_t w : validWeights) {
-      if (val == w) {
-        BBweight = val; BBWeight_kg = (float)BBweight / 100000.0f;
-        found = true;
-        break;
-      }
-    }
-
-    if (found) {
-      Serial.printf(">>> BLE: Set BB weight to %.2f g\n", (float)(BBweight / 100.0f));
-    } else {
-      Serial.println(">>> Faulty weight code");
-    }
 }
 
 
