@@ -72,7 +72,7 @@ uint32_t BLEliveSyncCounter = 0;
 TaskHandle_t HeartbeatTaskHandle;
 TaskHandle_t TofSensorCheckHandle;
 TaskHandle_t TimerCheckAndEvaluateTaskHandle;
-TaskHandle_t BLEsyncFakeTaskHandle;
+TaskHandle_t BLEsyncTaskHandle;
 
 
 // A "Start Pistol" to prevent running the tasks by using "xTaskCreate" in setup()
@@ -105,7 +105,7 @@ uint8_t BatteryVoltage;   // The uint8_t value of battery voltage for logging an
  * ============================================================ */
 // Function Prototypes
 void HeartbeatTask(void *pvParameters);
-void BLEsyncFakeTask(void *pvParameters);
+void BLEsyncTask(void *pvParameters);
 
 void TimerCheckAndEvaluate();
 
@@ -183,14 +183,14 @@ void setup() {
   );
 
 
-  // Create Task: BLEsyncFakeTask
+  // Create Task: BLEsyncTask
   xTaskCreate(
-      BLEsyncFakeTask,      // Function name
-      "BLEsyncFake",        // Name for debugging
+      BLEsyncTask,          // Function name
+      "BLEsync",            // Name for debugging
       1024,                 // Stack size (in words)
       NULL,                 // Parameter to pass
       4,                    // Priority
-      &BLEsyncFakeTaskHandle // Task handle
+      &BLEsyncTaskHandle    // Task handle
   );
 
   Serial.println("Setup Pre End");
@@ -268,7 +268,7 @@ void HeartbeatTask(void *pvParameters) {
 
 
 
-void BLEsyncFakeTask(void *pvParameters) {
+void BLEsyncTask(void *pvParameters) {
   // Wait here forever until setup gives the signal
   xSemaphoreTake(startTasksSignal, portMAX_DELAY);
   
@@ -283,27 +283,15 @@ void BLEsyncFakeTask(void *pvParameters) {
   // Put the signal back so OTHER tasks can also pass the gate
   xSemaphoreGive(startTasksSignal);
 
-  // Simulate Sensor Reading (Replace with your actual sensor code)
-  /*static uint32_t absCounter = 0;
+  // Start bulk sync, if triggered
+  if (bleAskForFullSync) {
+    BLE_performFullSync();
+  }
 
-  LogEntry currentRead;
-  currentRead.bbCounterAbsolute = ++absCounter;
-  currentRead.speed             = (uint16_t)random(5000, 25000); 
-  currentRead.weight            = BBweight;             
-  currentRead.temperature       = (int8_t)random(-10, 40); 
-  currentRead.battery           = (uint8_t)random(42, 100);
-  
-  // Save to RAM Buffer
-  dataLog[head] = currentRead;
-  head = (head + 1) % MAX_LOG_ENTRIES;
-
-  // Serial Debug (UART)
-  Serial.printf("[DEBUG] Cnt:%lu | Spd:%u | Wt:%u | Temp:%d | Bat:%u%%\n", 
-                currentRead.bbCounterAbsolute, 
-                currentRead.speed, 
-                currentRead.weight, 
-                currentRead.temperature, 
-                currentRead.battery);*/
+  // Start partial sync, if triggered
+  if (bleAskForPartialSync) {
+    BLEperformPartialSync();
+  }
 
   // Real-time BLE Update (Notify if phone is listening)
   if (Bluefruit.connected() && !bleAskForFullSync) {
@@ -311,22 +299,9 @@ void BLEsyncFakeTask(void *pvParameters) {
         BLE_liveDataChar.notify(&dataLog[BLEliveSyncCounter], sizeof(LogEntry));
         BLEliveSyncCounter++;
       }  
-  //BLE_liveDataChar.notify(&currentRead, sizeof(LogEntry));
   }
-
-  // Handle Bulk Sync (If triggered)
-  if (bleAskForFullSync) {
-    BLE_performFullSync();
-  }
-
-  // Handle Partial Sync (If triggered)
-  if (bleAskForPartialSync) {
-    BLEperformPartialSync();
-  }
-
 
   vTaskDelay(pdMS_TO_TICKS(100)); // Non-blocking delay
-  //delay((uint32_t)random(5000, 9000)); // Sample every x seconds
   }
 }
 
