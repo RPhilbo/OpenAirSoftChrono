@@ -29,5 +29,6 @@ struct TargetIdentifier {
 TargetIdentifier getTargetIdentifier();
 
 void TofSensorsEnableAll();
+void TofSensorCheckTask();
 
 #endif

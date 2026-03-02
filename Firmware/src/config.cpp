@@ -48,3 +48,25 @@ void TofSensorsEnableAll() {
   digitalWrite(TOF_SENSOR3_ENABLE, HIGH);
   Serial.println("                ToF sensor 3 is enabled");
 }
+
+// method to check the sensor outputs via polling (for debug purpose)
+void TofSensorCheckTask() {
+  
+  if (digitalRead(TOF_SENSOR1_OUTPUT)) {
+    digitalWrite(LED_RED, LED_ON);
+    Serial.println("Sensor 1 output is high");
+  }
+  else digitalWrite(LED_RED, LED_OFF);
+
+  if (digitalRead(TOF_SENSOR2_OUTPUT)) {
+    digitalWrite(LED_GREEN, LED_ON);
+    Serial.println("Sensor 2 output is high");
+  }
+  else digitalWrite(LED_GREEN, LED_OFF);
+
+  if (digitalRead(TOF_SENSOR3_OUTPUT)) {
+    digitalWrite(LED_BLUE, LED_ON);
+    Serial.println("Sensor 3 output is high");
+  }
+  else digitalWrite(LED_BLUE, LED_OFF);
+}

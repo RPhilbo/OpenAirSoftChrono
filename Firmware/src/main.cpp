@@ -105,7 +105,6 @@ uint8_t BatteryVoltage;   // The uint8_t value of battery voltage for logging an
  * ============================================================ */
 // Function Prototypes
 void HeartbeatTask(void *pvParameters);
-void TofSensorCheckTask(void *pvParameters);
 void BLEsyncFakeTask(void *pvParameters);
 
 void TimerCheckAndEvaluate();
@@ -183,19 +182,10 @@ void setup() {
       &HeartbeatTaskHandle  // Task handle
   );
 
-  // Create Task: TofSensorCheckTask
-  xTaskCreate(
-      TofSensorCheckTask,   // Function name
-      "TofPoll",            // Name for debugging
-      1024,                 // Stack size (in words)
-      NULL,                 // Parameter to pass
-      2,                    // Priority
-      &TofSensorCheckHandle // Task handle
-  );
 
   // Create Task: BLEsyncFakeTask
   xTaskCreate(
-      BLEsyncFakeTask,   // Function name
+      BLEsyncFakeTask,      // Function name
       "BLEsyncFake",        // Name for debugging
       1024,                 // Stack size (in words)
       NULL,                 // Parameter to pass
@@ -278,36 +268,7 @@ void HeartbeatTask(void *pvParameters) {
   }
 }
 
-// RTOS task to check the sensor via polling (for debug purpose)
-void TofSensorCheckTask(void *pvParameters) {
-  // Wait here forever until setup gives the signal
-  xSemaphoreTake(startTasksSignal, portMAX_DELAY);
-  
-  // Put the signal back so OTHER tasks can also pass the gate
-  xSemaphoreGive(startTasksSignal);
 
-  while (1) {
-    if (digitalRead(TOF_SENSOR1_OUTPUT)) {
-      digitalWrite(LED_RED, LED_ON);
-      Serial.println("Sensor 1 output is high");
-    }
-    else digitalWrite(LED_RED, LED_OFF);
-
-    if (digitalRead(TOF_SENSOR2_OUTPUT)) {
-      digitalWrite(LED_GREEN, LED_ON);
-      Serial.println("Sensor 2 output is high");
-    }
-    else digitalWrite(LED_GREEN, LED_OFF);
-
-    if (digitalRead(TOF_SENSOR3_OUTPUT)) {
-      digitalWrite(LED_BLUE, LED_ON);
-      Serial.println("Sensor 3 output is high");
-    }
-    else digitalWrite(LED_BLUE, LED_OFF);
-    
-    vTaskDelay(pdMS_TO_TICKS(300)); // Non-blocking delay
-  }
-}
 
 
 void BLEsyncFakeTask(void *pvParameters) {
