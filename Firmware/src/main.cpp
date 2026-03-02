@@ -550,22 +550,11 @@ void BLEsetup(void) {
   BLE_DeviceStatus.begin();
 }
 
-/*void BLEstartAdv(void) {
-  Bluefruit.Advertising.addFlags(BLE_GAP_ADV_FLAGS_LE_ONLY_GENERAL_DISC_MODE);
-  Bluefruit.Advertising.addService(BLE_oacService);
-  Bluefruit.ScanResponse.addName();
-  Bluefruit.Advertising.restartOnDisconnect(true);
-  Bluefruit.Advertising.start(0);
-}*/
-
 
 // Callback when phone writes to the Command Characteristic
 void BLE_commandCharCallback(uint16_t conn_hdl, BLECharacteristic* chr, uint8_t* data, uint16_t len) {
   Serial.printf(">>> BLE new command received: 0x%02X\n", data[0]);
-  /*if (len > 0 && data[0] == 0x42) {
-    Serial.println(">>> BLE bulk sync requested by phone!");
-    BLEaskForFullSync = true;
-  }*/
+
   if (len > 0) {
       switch(data[0]) {
     case 0x42:
@@ -623,12 +612,7 @@ void BLEperformPartialSync() {
   for (uint32_t i = startIdx; i < BBCounter; i++) {    
     // Check if entry exists (if buffer isn't full yet)
     if (dataLog[i].bbCounterAbsolute == 0) continue;
-    /*
 
-    while (!BLE_syncDataChar.notify(&dataLog[0], sizeof(LogEntry))) {
-      delay(2); // Wait for BLE stack to clear
-    }
-    */
 
     while (!BLE_syncDataChar.notify(&dataLog[i], sizeof(LogEntry))) {
       delay(2); // Wait for BLE stack to clear
@@ -648,23 +632,6 @@ void BLEperformPartialSync() {
 }
 
 
-/*void BLE_connect_callback(uint16_t conn_handle) {
-  // This code runs ONCE per new connection
-  Serial.println(">>> BLE Client Connected!");
-  
-  // syncing the actual value of BBCounter at the moment of connection
-  BLEliveSyncCounter = BBCounter; 
-  
-  // Optional: You can get info about the phone
-  BLEConnection* conn = Bluefruit.Connection(conn_handle);
-  char peer_name[32] = { 0 };
-  conn->getPeerName(peer_name, sizeof(peer_name));
-  Serial.printf(">>> BLE Connected to: %s\n", peer_name);
-}
-
-void BLE_disconnect_callback(uint16_t conn_handle, uint8_t reason) {
-  Serial.printf(">>> BLE Disconnected, reason = 0x%02X\n", reason);
-}*/
 
 void BLE_syncTimeCharCallback(uint16_t conn_hdl, BLECharacteristic* chr, uint8_t* data, uint16_t len) {
   Serial.println(">>> BLE Time sync");
