@@ -108,8 +108,6 @@ void HeartbeatTask(void *pvParameters);
 void TofSensorCheckTask(void *pvParameters);
 void BLEsyncFakeTask(void *pvParameters);
 
-void TofSensorsEnableAll();
-
 void TimerCheckAndEvaluate();
 
 void BLEsetup();
@@ -379,25 +377,6 @@ void BLEsyncFakeTask(void *pvParameters) {
 /* ============================================================
  * ======================= METHODS ============================
  * ============================================================ */
-
-// Enables the ToF sensors (and their current consumption)
-void TofSensorsEnableAll() {
-  Serial.println("\nEnabling the ToF sensor 1 after delay");
-  vTaskDelay(pdMS_TO_TICKS(500)); // Non-blocking delay
-  digitalWrite(TOF_SENSOR1_ENABLE, HIGH);
-  Serial.println("                ToF sensor 1 is enabled");
-
-  Serial.println("\nEnabling the ToF sensor 2 after delay");
-  vTaskDelay(pdMS_TO_TICKS(500)); // Non-blocking delay
-  digitalWrite(TOF_SENSOR2_ENABLE, HIGH);
-  Serial.println("                ToF sensor 2 is enabled");
-
-  Serial.println("\nEnabling the ToF sensor 3 after delay");
-  vTaskDelay(pdMS_TO_TICKS(500)); // Non-blocking delay
-  digitalWrite(TOF_SENSOR3_ENABLE, HIGH);
-  Serial.println("                ToF sensor 3 is enabled");
-}
-
 
 // Read Timer value, then calc and print value in microseconds
 void TimerCheckAndEvaluate() {

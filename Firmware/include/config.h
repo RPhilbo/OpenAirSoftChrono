@@ -4,6 +4,8 @@
 #include <stdint.h>
 #include <Arduino.h>
 
+#include "pins.h"
+
 // Uncomment this to use BB direction coming from USB-C interface.
 //#define bbDirectionFromUSB 
 //ToDo: Changing into a variable, so that it can be changed via bluetooth later.
@@ -25,5 +27,7 @@ struct TargetIdentifier {
  * ============================================================ */
 
 TargetIdentifier getTargetIdentifier();
+
+void TofSensorsEnableAll();
 
 #endif
