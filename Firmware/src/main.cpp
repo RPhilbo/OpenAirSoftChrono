@@ -64,13 +64,6 @@ bool bleAskForPartialSync = false; // Flag to manage partial transfer
 
 uint32_t BLEliveSyncCounter = 0;
 
-/* ============================================================
- * ======================= Pins ===============================
- * ============================================================ */
-
-/*#define LED_OFF HIGH
-#define LED_ON LOW*/
-
 
 /* ============================================================
  * ======================= RTOS ===============================
@@ -120,7 +113,6 @@ void TofSensorsEnableAll();
 void TimerCheckAndEvaluate();
 
 void BLEsetup();
-//void BLEstartAdv(void);
 void BLE_commandCharCallback(uint16_t conn_hdl, BLECharacteristic* chr, uint8_t* data, uint16_t len);
 void BLE_bbWeightCharCallback(uint16_t conn_hdl, BLECharacteristic* chr, uint8_t* data, uint16_t len);
 void BLE_syncTimeCharCallback(uint16_t conn_hdl, BLECharacteristic* chr, uint8_t* data, uint16_t len);
@@ -128,8 +120,6 @@ void BLE_performFullSync();
 void BLEperformPartialSync();
 
 void CheckxTaskWatermark();
-//void BLE_connect_callback(uint16_t conn_handle);
-//void BLE_disconnect_callback(uint16_t conn_handle, uint8_t reason);
 
 void getTimeNow();
 void printTimeNow();
@@ -146,7 +136,7 @@ void setup() {
 
   delay(2000);
   Serial.begin(115200);
-  //while(!Serial);
+  
   delay(500);
   Serial.println("\nSetup Start");
 
@@ -219,10 +209,6 @@ void setup() {
 
   Serial.println("Setup Pre End");
 
-  
-
-   
-
   Serial.println(" ");
   Serial.println("Setup End");
   Serial.println(" ");
@@ -259,11 +245,6 @@ void HeartbeatTask(void *pvParameters) {
 
   while (1) {
     digitalWrite(LED_RED, LED_ON);
-    //Serial.println("Heartbeat Task is alive");
-
-    // Measure the battery voltage
-    //float BatteryVoltageFloat = readBatteryVoltage();
-    //BatteryVoltage = uint8_t(BatteryVoltageFloat * 50);
 
     getTimeNow();
 
@@ -276,9 +257,8 @@ void HeartbeatTask(void *pvParameters) {
       // read the temperature from nrf
       tempMCU = getTempNRF();
       
-      Serial.printf("Heartbeat Task - Battery Voltage: %.2f V | %.1f °C \n", BatteryVoltageFloat, tempMCU);
+      Serial.printf("Heartbeat Task - Battery Voltage: %.2f V | %.1f °C | ", BatteryVoltageFloat, tempMCU);
 
-      //getTimeNow();
       printTimeNow();
 
       FakeCounter = 0;
@@ -293,16 +273,7 @@ void HeartbeatTask(void *pvParameters) {
           BLE_DeviceStatus.notify(&DeviceStatus, sizeof(DeviceStatus));
       }
     }
-    
-    
-    
-    
 
-    // Update the characteristic and NOTIFY the connected app
-    /*if (Bluefruit.connected()) {
-      fakeChar.notify32(FakeCounter);
-      Serial.printf("Sent value: %d\n", FakeCounter);
-    }*/
 
     FakeCounter++;
       vTaskDelay(pdMS_TO_TICKS(500)); // Non-blocking delay
@@ -447,9 +418,7 @@ void TimerCheckAndEvaluate() {
     currentRead.bbCounterAbsolute = BBCounter;
     currentRead.speed             = (uint16_t)roundf(100 * velocity12);
     currentRead.weight            = BBweight;
-    //currentRead.temperature       = (int8_t)random(-10, 40);
     currentRead.temperature       = (int8_t)roundf(tempMCU);
-    //currentRead.battery           = (uint8_t)random(42, 100);
     currentRead.battery           = (uint8_t)BatteryVoltage;
     currentRead.energy            = (uint16_t)roundf(1000 * energy12);
     currentRead.year              = (uint8_t)(timeNow.year() - 2000);
