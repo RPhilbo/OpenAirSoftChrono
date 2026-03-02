@@ -7,6 +7,7 @@
 #include "battery.h"
 #include "bluetooth.h"
 #include "config.h"
+#include "pins.h"
 #include "timer_control.h"
 
 #define LED_OFF HIGH
@@ -18,11 +19,10 @@
  * ======================= GLOBALS ============================
  * ============================================================ */
 
-uint32_t part;
-uint32_t variant;
-uint64_t UID;
-DateTime TimeNow;
+DateTime timeNow;
 float tempMCU;    // NRF52 internal Die temp. Expect an offset of 2-5K
+
+TargetIdentifier myTargetIdentifier;
 
 /* ============================================================
  * ======================= Logging ============================
@@ -59,46 +59,10 @@ DeviceStatusStruct DeviceStatus;
 // Storage
 LogEntry dataLog[MAX_LOG_ENTRIES];
 int head = 0;           // Next write position
-bool BLEaskForFullSync    = false; // Flag to manage bulk transfer
-bool BLEaskForPartialSync = false; // Flag to manage partial transfer
+bool bleAskForFullSync    = false; // Flag to manage bulk transfer
+bool bleAskForPartialSync = false; // Flag to manage partial transfer
 
 uint32_t BLEliveSyncCounter = 0;
-
-/* ============================================================
- * ======================= BLE ================================
- * ============================================================ */
-/*// Defining Bluetooth low energy device name and characteristics UUIDs
-#define BLE_NAME "OpenAirsoftChrono "
-//const char BLEname = 'OAC Hello 2';
-BLEService        BLE_oacService    = BLEService("38473649-f72a-43bf-a6cd-31e0b2f7207d");
-
-// BLE characters bidirectional (mainly to write smartphone --> NRF)
-BLECharacteristic BLE_commandChar   = BLECharacteristic("3f2289d8-575c-43ea-b28c-8e2dc0074984"); // Write 0x01 to sync
-BLECharacteristic BLE_bbWeightChar  = BLECharacteristic("c88b71aa-e965-4538-8b3a-67697b7cc774"); // bbWeight to be changed via smartphone
-BLECharacteristic BLE_syncTimeChar  = BLECharacteristic("e49d43db-8007-4727-a239-e5143264fe4c"); // sync date and time
-
-// BLE characters uplink only (NRF --> smartphone)
-BLECharacteristic BLE_liveDataChar  = BLECharacteristic("52e57b10-74fd-42ba-8401-e00d4dc0463c"); // live update per shot
-BLECharacteristic BLE_syncDataChar  = BLECharacteristic("ee39cb31-12f2-4666-b4b9-58e21ec77c34"); // sync updates per smartphone request
-BLECharacteristic BLE_DeviceStatus  = BLECharacteristic("56606f53-c354-4e08-ad4e-2b74bf1bf0d0"); // Battery, temperature, IMU
-
-// Debug purpose, will be deleted later
-BLECharacteristic BLE_fakeChar      = BLECharacteristic("4249");*/
-
-/* ============================================================
- * ======================= Pins ===============================
- * ============================================================ */
-
-#define LED_OFF HIGH
-#define LED_ON LOW
-
-#define ToF_Sensor1_Enable D9
-#define ToF_Sensor2_Enable D8
-#define ToF_Sensor3_Enable D19
-
-#define ToF_Sensor1_Output D10
-#define ToF_Sensor2_Output D7
-#define ToF_Sensor3_Output D18
 
 
 /* ============================================================
@@ -108,7 +72,7 @@ BLECharacteristic BLE_fakeChar      = BLECharacteristic("4249");*/
 TaskHandle_t HeartbeatTaskHandle;
 TaskHandle_t TofSensorCheckHandle;
 TaskHandle_t TimerCheckAndEvaluateTaskHandle;
-TaskHandle_t BLEsyncFakeTaskHandle;
+TaskHandle_t BLEsyncTaskHandle;
 
 
 // A "Start Pistol" to prevent running the tasks by using "xTaskCreate" in setup()
@@ -141,24 +105,16 @@ uint8_t BatteryVoltage;   // The uint8_t value of battery voltage for logging an
  * ============================================================ */
 // Function Prototypes
 void HeartbeatTask(void *pvParameters);
-void TofSensorCheckTask(void *pvParameters);
-void BLEsyncFakeTask(void *pvParameters);
-
-void TofSensorsEnableAll();
+void BLEsyncTask(void *pvParameters);
 
 void TimerCheckAndEvaluate();
 
 void BLEsetup();
-//void BLEstartAdv(void);
-void BLE_commandCharCallback(uint16_t conn_hdl, BLECharacteristic* chr, uint8_t* data, uint16_t len);
-void BLE_bbWeightCharCallback(uint16_t conn_hdl, BLECharacteristic* chr, uint8_t* data, uint16_t len);
 void BLE_syncTimeCharCallback(uint16_t conn_hdl, BLECharacteristic* chr, uint8_t* data, uint16_t len);
-void BLEperformFullSync();
+void BLE_performFullSync();
 void BLEperformPartialSync();
 
 void CheckxTaskWatermark();
-//void BLE_connect_callback(uint16_t conn_handle);
-//void BLE_disconnect_callback(uint16_t conn_handle, uint8_t reason);
 
 void getTimeNow();
 void printTimeNow();
@@ -175,15 +131,13 @@ void setup() {
 
   delay(2000);
   Serial.begin(115200);
-  //while(!Serial);
+  
   delay(500);
   Serial.println("\nSetup Start");
 
-  // Read the MCU part, variant and unique ID
-  part = NRF_FICR->INFO.PART;
-  variant = NRF_FICR->INFO.VARIANT;
-  UID = ((uint64_t)NRF_FICR->DEVICEID[1] << 32) | NRF_FICR->DEVICEID[0];
-  Serial.printf("[HW] Part: %lx | Variant: %lx | UID: %lx \n", part, variant, UID);
+  // Get the target complete identifier
+  myTargetIdentifier = getTargetIdentifier();
+  Serial.printf("[HW] Part: %lx | Variant: %lx | UID: %lx \n", myTargetIdentifier.part, myTargetIdentifier.variant, myTargetIdentifier.UID);
 
   // Initialize RTC with a default time (Jan 1 2000)
     rtc.begin(DateTime(2000, 1, 1, 0, 0, 0));
@@ -194,13 +148,13 @@ void setup() {
   pinMode(LED_BLUE, OUTPUT);  digitalWrite(LED_BLUE,  LED_OFF);
 
   // Setup the ToF sensor pins
-  pinMode(ToF_Sensor1_Enable, OUTPUT);   digitalWrite(ToF_Sensor1_Enable, LOW);
-  pinMode(ToF_Sensor2_Enable, OUTPUT);   digitalWrite(ToF_Sensor2_Enable, LOW);
-  pinMode(ToF_Sensor3_Enable, OUTPUT);   digitalWrite(ToF_Sensor3_Enable, LOW);
+  pinMode(TOF_SENSOR1_ENABLE, OUTPUT);   digitalWrite(TOF_SENSOR1_ENABLE, LOW);
+  pinMode(TOF_SENSOR2_ENABLE, OUTPUT);   digitalWrite(TOF_SENSOR2_ENABLE, LOW);
+  pinMode(TOF_SENSOR3_ENABLE, OUTPUT);   digitalWrite(TOF_SENSOR3_ENABLE, LOW);
 
-  pinMode(ToF_Sensor1_Output, INPUT_PULLDOWN);
-  pinMode(ToF_Sensor2_Output, INPUT_PULLDOWN);
-  pinMode(ToF_Sensor3_Output, INPUT_PULLDOWN);
+  pinMode(TOF_SENSOR1_OUTPUT, INPUT_PULLDOWN);
+  pinMode(TOF_SENSOR2_OUTPUT, INPUT_PULLDOWN);
+  pinMode(TOF_SENSOR3_OUTPUT, INPUT_PULLDOWN);
 
 
   // Enabling the ToF sensor pins.
@@ -228,31 +182,18 @@ void setup() {
       &HeartbeatTaskHandle  // Task handle
   );
 
-  // Create Task: TofSensorCheckTask
-  xTaskCreate(
-      TofSensorCheckTask,   // Function name
-      "TofPoll",            // Name for debugging
-      1024,                 // Stack size (in words)
-      NULL,                 // Parameter to pass
-      2,                    // Priority
-      &TofSensorCheckHandle // Task handle
-  );
 
-  // Create Task: BLEsyncFakeTask
+  // Create Task: BLEsyncTask
   xTaskCreate(
-      BLEsyncFakeTask,   // Function name
-      "BLEsyncFake",        // Name for debugging
+      BLEsyncTask,          // Function name
+      "BLEsync",            // Name for debugging
       1024,                 // Stack size (in words)
       NULL,                 // Parameter to pass
       4,                    // Priority
-      &BLEsyncFakeTaskHandle // Task handle
+      &BLEsyncTaskHandle    // Task handle
   );
 
   Serial.println("Setup Pre End");
-
-  
-
-   
 
   Serial.println(" ");
   Serial.println("Setup End");
@@ -289,12 +230,6 @@ void HeartbeatTask(void *pvParameters) {
   xSemaphoreGive(startTasksSignal);
 
   while (1) {
-    digitalWrite(LED_RED, LED_ON);
-    //Serial.println("Heartbeat Task is alive");
-
-    // Measure the battery voltage
-    //float BatteryVoltageFloat = readBatteryVoltage();
-    //BatteryVoltage = uint8_t(BatteryVoltageFloat * 50);
 
     getTimeNow();
 
@@ -307,9 +242,8 @@ void HeartbeatTask(void *pvParameters) {
       // read the temperature from nrf
       tempMCU = getTempNRF();
       
-      Serial.printf("Heartbeat Task - Battery Voltage: %.2f V | %.1f °C \n", BatteryVoltageFloat, tempMCU);
+      Serial.printf("Heartbeat Task - Battery Voltage: %.2f V | %.1f °C | ", BatteryVoltageFloat, tempMCU);
 
-      //getTimeNow();
       printTimeNow();
 
       FakeCounter = 0;
@@ -324,57 +258,17 @@ void HeartbeatTask(void *pvParameters) {
           BLE_DeviceStatus.notify(&DeviceStatus, sizeof(DeviceStatus));
       }
     }
-    
-    
-    
-    
 
-    // Update the characteristic and NOTIFY the connected app
-    /*if (Bluefruit.connected()) {
-      fakeChar.notify32(FakeCounter);
-      Serial.printf("Sent value: %d\n", FakeCounter);
-    }*/
 
     FakeCounter++;
-      vTaskDelay(pdMS_TO_TICKS(500)); // Non-blocking delay
-    digitalWrite(LED_RED, LED_OFF);
-      vTaskDelay(pdMS_TO_TICKS(500)); // Non-blocking delay
-  }
-}
-
-// RTOS task to check the sensor via polling (for debug purpose)
-void TofSensorCheckTask(void *pvParameters) {
-  // Wait here forever until setup gives the signal
-  xSemaphoreTake(startTasksSignal, portMAX_DELAY);
-  
-  // Put the signal back so OTHER tasks can also pass the gate
-  xSemaphoreGive(startTasksSignal);
-
-  while (1) {
-    if (digitalRead(ToF_Sensor1_Output)) {
-      digitalWrite(LED_RED, LED_ON);
-      Serial.println("Sensor 1 output is high");
-    }
-    else digitalWrite(LED_RED, LED_OFF);
-
-    if (digitalRead(ToF_Sensor2_Output)) {
-      digitalWrite(LED_GREEN, LED_ON);
-      Serial.println("Sensor 2 output is high");
-    }
-    else digitalWrite(LED_GREEN, LED_OFF);
-
-    if (digitalRead(ToF_Sensor3_Output)) {
-      digitalWrite(LED_BLUE, LED_ON);
-      Serial.println("Sensor 3 output is high");
-    }
-    else digitalWrite(LED_BLUE, LED_OFF);
-    
-    vTaskDelay(pdMS_TO_TICKS(300)); // Non-blocking delay
+      vTaskDelay(pdMS_TO_TICKS(1000)); // Non-blocking delay
   }
 }
 
 
-void BLEsyncFakeTask(void *pvParameters) {
+
+
+void BLEsyncTask(void *pvParameters) {
   // Wait here forever until setup gives the signal
   xSemaphoreTake(startTasksSignal, portMAX_DELAY);
   
@@ -389,50 +283,25 @@ void BLEsyncFakeTask(void *pvParameters) {
   // Put the signal back so OTHER tasks can also pass the gate
   xSemaphoreGive(startTasksSignal);
 
-  // Simulate Sensor Reading (Replace with your actual sensor code)
-  /*static uint32_t absCounter = 0;
+  // Start bulk sync, if triggered
+  if (bleAskForFullSync) {
+    BLE_performFullSync();
+  }
 
-  LogEntry currentRead;
-  currentRead.bbCounterAbsolute = ++absCounter;
-  currentRead.speed             = (uint16_t)random(5000, 25000); 
-  currentRead.weight            = BBweight;             
-  currentRead.temperature       = (int8_t)random(-10, 40); 
-  currentRead.battery           = (uint8_t)random(42, 100);
-  
-  // Save to RAM Buffer
-  dataLog[head] = currentRead;
-  head = (head + 1) % MAX_LOG_ENTRIES;
-
-  // Serial Debug (UART)
-  Serial.printf("[DEBUG] Cnt:%lu | Spd:%u | Wt:%u | Temp:%d | Bat:%u%%\n", 
-                currentRead.bbCounterAbsolute, 
-                currentRead.speed, 
-                currentRead.weight, 
-                currentRead.temperature, 
-                currentRead.battery);*/
+  // Start partial sync, if triggered
+  if (bleAskForPartialSync) {
+    BLEperformPartialSync();
+  }
 
   // Real-time BLE Update (Notify if phone is listening)
-  if (Bluefruit.connected() && !BLEaskForFullSync) {
+  if (Bluefruit.connected() && !bleAskForFullSync) {
       if (BBCounter > BLEliveSyncCounter) {
         BLE_liveDataChar.notify(&dataLog[BLEliveSyncCounter], sizeof(LogEntry));
         BLEliveSyncCounter++;
       }  
-  //BLE_liveDataChar.notify(&currentRead, sizeof(LogEntry));
   }
-
-  // Handle Bulk Sync (If triggered)
-  if (BLEaskForFullSync) {
-    BLEperformFullSync();
-  }
-
-  // Handle Partial Sync (If triggered)
-  if (BLEaskForPartialSync) {
-    BLEperformPartialSync();
-  }
-
 
   vTaskDelay(pdMS_TO_TICKS(100)); // Non-blocking delay
-  //delay((uint32_t)random(5000, 9000)); // Sample every x seconds
   }
 }
 
@@ -440,25 +309,6 @@ void BLEsyncFakeTask(void *pvParameters) {
 /* ============================================================
  * ======================= METHODS ============================
  * ============================================================ */
-
-// Enables the ToF sensors (and their current consumption)
-void TofSensorsEnableAll() {
-  Serial.println("\nEnabling the ToF sensor 1 after delay");
-  vTaskDelay(pdMS_TO_TICKS(500)); // Non-blocking delay
-  digitalWrite(ToF_Sensor1_Enable, HIGH);
-  Serial.println("                ToF sensor 1 is enabled");
-
-  Serial.println("\nEnabling the ToF sensor 2 after delay");
-  vTaskDelay(pdMS_TO_TICKS(500)); // Non-blocking delay
-  digitalWrite(ToF_Sensor2_Enable, HIGH);
-  Serial.println("                ToF sensor 2 is enabled");
-
-  Serial.println("\nEnabling the ToF sensor 3 after delay");
-  vTaskDelay(pdMS_TO_TICKS(500)); // Non-blocking delay
-  digitalWrite(ToF_Sensor3_Enable, HIGH);
-  Serial.println("                ToF sensor 3 is enabled");
-}
-
 
 // Read Timer value, then calc and print value in microseconds
 void TimerCheckAndEvaluate() {
@@ -478,17 +328,15 @@ void TimerCheckAndEvaluate() {
     currentRead.bbCounterAbsolute = BBCounter;
     currentRead.speed             = (uint16_t)roundf(100 * velocity12);
     currentRead.weight            = BBweight;
-    //currentRead.temperature       = (int8_t)random(-10, 40);
     currentRead.temperature       = (int8_t)roundf(tempMCU);
-    //currentRead.battery           = (uint8_t)random(42, 100);
     currentRead.battery           = (uint8_t)BatteryVoltage;
     currentRead.energy            = (uint16_t)roundf(1000 * energy12);
-    currentRead.year              = (uint8_t)(TimeNow.year() - 2000);
-    currentRead.month             = TimeNow.month();
-    currentRead.day               = TimeNow.day();
-    currentRead.hr                = TimeNow.hour();
-    currentRead.min               = TimeNow.minute();
-    currentRead.sec               = TimeNow.second();
+    currentRead.year              = (uint8_t)(timeNow.year() - 2000);
+    currentRead.month             = timeNow.month();
+    currentRead.day               = timeNow.day();
+    currentRead.hr                = timeNow.hour();
+    currentRead.min               = timeNow.minute();
+    currentRead.sec               = timeNow.second();
     
     // write into RAM buffer
     dataLog[head] = currentRead;
@@ -536,7 +384,7 @@ void BLEsetup(void) {
   // XOR all 8 bytes of the UID together into one byte
   uint8_t hashedUID = 0;
   for (int i = 0; i < 64; i += 8) {
-      hashedUID ^= (uint8_t)(UID >> i);
+      hashedUID ^= (uint8_t)(myTargetIdentifier.UID >> i);
   }
 
   char bleName[24];
@@ -613,70 +461,9 @@ void BLEsetup(void) {
   BLE_DeviceStatus.begin();
 }
 
-/*void BLEstartAdv(void) {
-  Bluefruit.Advertising.addFlags(BLE_GAP_ADV_FLAGS_LE_ONLY_GENERAL_DISC_MODE);
-  Bluefruit.Advertising.addService(BLE_oacService);
-  Bluefruit.ScanResponse.addName();
-  Bluefruit.Advertising.restartOnDisconnect(true);
-  Bluefruit.Advertising.start(0);
-}*/
 
 
-// Callback when phone writes to the Command Characteristic
-void BLE_commandCharCallback(uint16_t conn_hdl, BLECharacteristic* chr, uint8_t* data, uint16_t len) {
-  Serial.printf(">>> BLE new command received: 0x%02X\n", data[0]);
-  /*if (len > 0 && data[0] == 0x42) {
-    Serial.println(">>> BLE bulk sync requested by phone!");
-    BLEaskForFullSync = true;
-  }*/
-  if (len > 0) {
-      switch(data[0]) {
-    case 0x42:
-      // full sync
-      Serial.println(">>> BLE bulk sync requested by phone!");
-      BLEaskForFullSync = true;
-      break;
-
-    case 0x43:
-      // partial sync
-      Serial.println(">>> BLE partial sync requested by phone!");
-      BLEaskForPartialSync = true;
-      break;
-
-    default:
-      Serial.println(">>> Faulty code?");
-    }
-  }
-}
-
-// Callback when phone writes to the bbWeight Characteristic
-void BLE_bbWeightCharCallback(uint16_t conn_hdl, BLECharacteristic* chr, uint8_t* data, uint16_t len) {
-  Serial.printf(">>> BLE new BB Weight received: 0x%02X\n", data[0]);
-  if (len == 0) return;
-
-  // Define valid weights
-  static const uint8_t validWeights[] = {12, 20, 23, 25, 28, 30, 32, 33, 35, 36, 40, 43, 45, 46};
-
-    uint8_t val = data[0];
-    bool found = false;
-
-    for (uint8_t w : validWeights) {
-      if (val == w) {
-        BBweight = val; BBWeight_kg = (float)BBweight / 100000.0f;
-        found = true;
-        break;
-      }
-    }
-
-    if (found) {
-      Serial.printf(">>> BLE: Set BB weight to %.2f g\n", (float)(BBweight / 100.0f));
-    } else {
-      Serial.println(">>> Faulty weight code");
-    }
-}
-
-
-void BLEperformFullSync() {
+void BLE_performFullSync() {
   Serial.println(">>> BLE starting bulk sync...");
   for (int i = 0; i < MAX_LOG_ENTRIES; i++) {
     int index = (head + i) % MAX_LOG_ENTRIES;
@@ -698,7 +485,7 @@ void BLEperformFullSync() {
                   dataLog[index].energy);
   }
   Serial.println(">>> BLE bulk sync complete.");
-  BLEaskForFullSync = false;
+  bleAskForFullSync = false;
 }
 
 
@@ -712,12 +499,7 @@ void BLEperformPartialSync() {
   for (uint32_t i = startIdx; i < BBCounter; i++) {    
     // Check if entry exists (if buffer isn't full yet)
     if (dataLog[i].bbCounterAbsolute == 0) continue;
-    /*
 
-    while (!BLE_syncDataChar.notify(&dataLog[0], sizeof(LogEntry))) {
-      delay(2); // Wait for BLE stack to clear
-    }
-    */
 
     while (!BLE_syncDataChar.notify(&dataLog[i], sizeof(LogEntry))) {
       delay(2); // Wait for BLE stack to clear
@@ -733,27 +515,10 @@ void BLEperformPartialSync() {
                   dataLog[i].energy);
   }
   Serial.println(">>> BLE partial sync complete.");
-  BLEaskForPartialSync = false;
+  bleAskForPartialSync = false;
 }
 
 
-/*void BLE_connect_callback(uint16_t conn_handle) {
-  // This code runs ONCE per new connection
-  Serial.println(">>> BLE Client Connected!");
-  
-  // syncing the actual value of BBCounter at the moment of connection
-  BLEliveSyncCounter = BBCounter; 
-  
-  // Optional: You can get info about the phone
-  BLEConnection* conn = Bluefruit.Connection(conn_handle);
-  char peer_name[32] = { 0 };
-  conn->getPeerName(peer_name, sizeof(peer_name));
-  Serial.printf(">>> BLE Connected to: %s\n", peer_name);
-}
-
-void BLE_disconnect_callback(uint16_t conn_handle, uint8_t reason) {
-  Serial.printf(">>> BLE Disconnected, reason = 0x%02X\n", reason);
-}*/
 
 void BLE_syncTimeCharCallback(uint16_t conn_hdl, BLECharacteristic* chr, uint8_t* data, uint16_t len) {
   Serial.println(">>> BLE Time sync");
@@ -777,29 +542,19 @@ void BLE_syncTimeCharCallback(uint16_t conn_hdl, BLECharacteristic* chr, uint8_t
             now.year(), now.month(), now.day(), 
             now.hour(), now.minute(), now.second() );
     Serial.println(buf);
-    //getTimeNow();
-    //printTimeNow();
   }
 }
 
 void getTimeNow() {
-  //DateTime now = rtc.now();
-  TimeNow = rtc.now();
-
-  /*char buf[50];
-  sprintf(buf, "%04d-%02d-%02d %02d:%02d:%02d \n", 
-          TimeNow.year(), TimeNow.month(), TimeNow.day(), 
-          TimeNow.hour(), TimeNow.minute(), TimeNow.second() );
-  Serial.println(buf);*/
+  timeNow = rtc.now();
 }
 
 void printTimeNow() {
-  //DateTime TimeNow = rtc.now();
 
   char buf[50];
   sprintf(buf, "%04d-%02d-%02d %02d:%02d:%02d \n", 
-          TimeNow.year(), TimeNow.month(), TimeNow.day(), 
-          TimeNow.hour(), TimeNow.minute(), TimeNow.second() );
+          timeNow.year(), timeNow.month(), timeNow.day(), 
+          timeNow.hour(), timeNow.minute(), timeNow.second() );
   Serial.println(buf);
 }
 
