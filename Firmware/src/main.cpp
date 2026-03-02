@@ -230,7 +230,6 @@ void HeartbeatTask(void *pvParameters) {
   xSemaphoreGive(startTasksSignal);
 
   while (1) {
-    digitalWrite(LED_RED, LED_ON);
 
     getTimeNow();
 
@@ -262,9 +261,7 @@ void HeartbeatTask(void *pvParameters) {
 
 
     FakeCounter++;
-      vTaskDelay(pdMS_TO_TICKS(500)); // Non-blocking delay
-    digitalWrite(LED_RED, LED_OFF);
-      vTaskDelay(pdMS_TO_TICKS(500)); // Non-blocking delay
+      vTaskDelay(pdMS_TO_TICKS(1000)); // Non-blocking delay
   }
 }
 
